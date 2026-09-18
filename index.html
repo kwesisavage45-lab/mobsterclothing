@@ -1070,8 +1070,19 @@
             <p class="text-[9px] uppercase tracking-[4px] text-gray-400 mb-1">Mobster Clothing</p>
             <h2 class="serif text-2xl font-bold mb-6">Admin Access</h2>
             <label class="adm-label">Passkey</label>
-            <input id="admin-passkey-input" type="password" class="adm-input" placeholder="Enter passkey"
-                   onkeypress="if(event.keyCode===13) { event.preventDefault(); verifyPasskey(); }">
+            <div style="position:relative;">
+                <input id="admin-passkey-input" type="password" class="adm-input" placeholder="Enter passkey"
+                       style="padding-right:44px;"
+                       onkeypress="if(event.keyCode===13) { event.preventDefault(); verifyPasskey(); }">
+                <button type="button" onclick="(function(){const i=document.getElementById('admin-passkey-input');const e=document.getElementById('passkey-eye');i.type=i.type==='password'?'text':'password';e.innerHTML=i.type==='password'?'<path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.6\' d=\'M15 12a3 3 0 11-6 0 3 3 0 016 0z\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.6\' d=\'M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\'/>':'<path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.6\' d=\'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21\'/>';})()"
+                       style="position:absolute;right:0;top:0;bottom:0;width:42px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:#9ca3af;"
+                       aria-label="Toggle passkey visibility">
+                    <svg id="passkey-eye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                </button>
+            </div>
             <p id="passkey-error" class="text-[10px] text-red-500 mt-2" style="display:none;">Incorrect passkey. Try again.</p>
             <div class="flex gap-3 mt-6">
                 <button onclick="verifyPasskey()" class="flex-1 bg-black text-white py-3 text-[10px] uppercase tracking-[3px] hover:bg-gray-800 transition-colors">
@@ -1136,7 +1147,7 @@
                         <p class="adm-hint">JPG / PNG / WEBP — you can pick more than one. First image is the cover.</p>
                         <!-- Test button: tap to see exact Cloudinary response in the status bar -->
                         <input id="adm-test-file" type="file" accept="image/*" style="display:none;" onchange="testCloudinaryUpload(this.files[0])">
-                        <button type="button" class="adm-linkish" onclick="document.getElementById('adm-test-file').click()" style="color:#3b82f6;"> (pick any image to see Cloudinary response)</button>
+                        <button type="button" class="adm-linkish" onclick="document.getElementById('adm-test-file').click()" style="color:#3b82f6;">🔍 Test connection (pick any image to see Cloudinary response)</button>
 
                         <div id="adm-upload-status" class="adm-upload-status"></div>
 
@@ -1763,7 +1774,11 @@
                 const displaySrc = imageUrl || item.img || '';
                 total += itemTotal;
                 return `
-                    <div class="cart-item">
+                    <div class="cart-item" style="position:relative;">
+                        <button onclick="removeFromCart(${item.id})" title="Remove item"
+                            style="position:absolute;top:0;right:0;width:24px;height:24px;border-radius:50%;background:#f3f4f6;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:#6b7280;line-height:1;"
+                            onmouseover="this.style.background='#fee2e2';this.style.color='#ef4444'"
+                            onmouseout="this.style.background='#f3f4f6';this.style.color='#6b7280'">✕</button>
                         <img src="${escapeHtml(displaySrc)}" alt="${escapeHtml(item.name)}"
                              onerror="this.src='https://via.placeholder.com/60x80?text=?'"
                              style="cursor:${imageUrl ? 'pointer' : 'default'};"
@@ -1772,14 +1787,18 @@
                             <div class="cart-item-name">${escapeHtml(item.name)}</div>
                             <div class="cart-item-meta">Size: ${item.size} | Qty: ${item.quantity}</div>
                             <div class="cart-item-price">GHC ${itemTotal.toFixed(2)}</div>
-                            ${imageUrl
-                                ? `<a href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener noreferrer" class="block mt-1 text-[9px] text-blue-500 underline break-all">🖼️ ${escapeHtml(imageUrl)}</a>`
-                                : '<p class="mt-1 text-[9px] text-red-400">No URL — re-upload product image via admin</p>'}
                         </div>
                     </div>
                 `;
             }).join('');
             cartTotal.textContent = `GHC ${total.toFixed(2)}`;
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(item => item.id !== id);
+            localStorage.setItem('mc_cart', JSON.stringify(cart));
+            updateCartBadge();
+            if (cart.length === 0) { closeCheckout(); } else { renderCartItems(); }
         }
 
         function selectDeliveryOption(option) {
@@ -1825,11 +1844,18 @@
             else message += `*Delivery Option:* Delivery\n*Delivery Details:*\nName: ${customer.name}\nPhone: ${customer.phone}\nAddress: ${customer.address}\n`;
             message += '\nThank you for your order!';
             window.open(`https://wa.me/233204608631?text=${encodeURIComponent(message)}`, '_blank');
+            // Clear cart completely
             cart = [];
-            localStorage.setItem('mc_cart', JSON.stringify(cart));
+            localStorage.removeItem('mc_cart');
             updateCartBadge();
-            renderCartItems(); // clear the visible summary immediately, before the modal closes
             closeCheckout();
+            // Show success toast
+            const flash = document.createElement('div');
+            flash.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#000;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:3px;padding:12px 22px;z-index:9999;border-radius:2px;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:opacity 0.4s ease;';
+            flash.textContent = '✓ Order sent — thank you!';
+            document.body.appendChild(flash);
+            setTimeout(() => { flash.style.opacity = '0'; }, 2800);
+            setTimeout(() => flash.remove(), 3300);
         }
 
         function addToBag() {
@@ -2260,7 +2286,9 @@
                 const stockQtyBadge = (p.showStockQty === true && p.stockQty !== null && p.stockQty !== undefined && !isNaN(p.stockQty))
                     ? `<p class="text-[10px] mt-1 font-medium ${p.stockQty === 0 ? 'text-red-600' : p.stockQty <= 5 ? 'text-red-500' : 'text-gray-500'}">${p.stockQty} pc${p.stockQty === 1 ? '' : 's'} left</p>` : '';
                 return `
-                <div class="adm-product-card">
+                <div class="adm-product-card" style="position:relative;">
+                    <button onclick="deleteProduct('${p.id}')" title="Delete product"
+                        style="position:absolute;top:8px;right:8px;z-index:10;width:28px;height:28px;border-radius:50%;background:rgba(239,68,68,0.92);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,0.18);">✕</button>
                     <img class="adm-thumb" src="${thumb}" alt="${p.name}" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
                     ${extraImgs ? `<div class="px-3 pt-2">${extraImgs}</div>` : ''}
                     <div class="p-3">
