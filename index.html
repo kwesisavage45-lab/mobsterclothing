@@ -1666,21 +1666,6 @@
         window.adminProducts = JSON.parse(localStorage.getItem('mc_admin_products') || '[]');
         let editingId = null;
 
-        // Seed default products if localStorage is also empty
-        if (window.adminProducts.length === 0) {
-            window.adminProducts = [
-                { id: 'p1', name: 'Wool Coat — Camel', price: 295, images: ['https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L,XL', colors: 'Camel', desc: '', inStock: true },
-                { id: 'p2', name: 'Silk Slip Dress — Black', price: 180, images: ['https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L', colors: 'Black', desc: '', inStock: true },
-                { id: 'p3', name: 'Oversized Knit — Cream', price: 145, images: ['https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&q=80&w=400'], sizes: 'S,M,L,XL', colors: 'Cream', desc: '', inStock: true },
-                { id: 'p4', name: 'Tailored Trousers — Black', price: 210, images: ['https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L,XL', colors: 'Black', desc: '', inStock: true },
-                { id: 'p5', name: 'Linen Blouse — White', price: 120, images: ['https://images.unsplash.com/photo-1551232864-3f0890e580d9?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L', colors: 'White', desc: '', inStock: true },
-                { id: 'p6', name: 'Leather Tote — Tan', price: 320, images: ['https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&q=80&w=400'], sizes: '', colors: 'Tan', desc: '', inStock: true },
-            ];
-            // saveToStorage will be called by the Firebase module once it's ready
-            // Fall back to localStorage immediately for faster initial render
-            localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
-        }
-
         // ── Init — AFTER adminProducts is populated ───────
         showPage('home');
         updateCartBadge();
