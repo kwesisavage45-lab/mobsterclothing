@@ -585,14 +585,19 @@
         <!-- Hero Banner -->
         <section class="relative overflow-hidden mx-6 mt-6 rounded-sm" id="hero-section">
             <!-- Slide 1 -->
-            <img id="hero-slide-0" src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/rpaahldkdcaqs1hndpxm.jpg"
+            <img id="hero-slide-0" src="https://res.cloudinary.com/dvrnxd8t3/image/upload/v1789769543/photo_1_2026-09-18_22-10-14_nwgtja.jpg"
                  alt="Hero 1" class="hero-slide absolute inset-0 w-full h-full object-cover object-top" style="opacity:1; z-index:1;">
             <!-- Slide 2 -->
-            <img id="hero-slide-1" src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/rdvpj0xz11c7dotzdokx.jpg"
+            <img id="hero-slide-1" src="https://res.cloudinary.com/dvrnxd8t3/image/upload/v1789769543/photo_3_2026-09-18_22-10-14_uqpjrv.jpg"
                  alt="Hero 2" class="hero-slide absolute inset-0 w-full h-full object-cover object-center" style="opacity:0; z-index:1;">
             <!-- Slide 3 -->
-            <img id="hero-slide-2" src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/zeayrbuuevpm8e1cxvui.jpg"
+            <img id="hero-slide-2" src="https://res.cloudinary.com/dvrnxd8t3/image/upload/v1789769543/photo_3_2026-09-18_22-10-14_uqpjrv.jpg"
                  alt="Hero 3" class="hero-slide absolute inset-0 w-full h-full object-cover object-top" style="opacity:0; z-index:1;">
+            <!-- Slide 4: video -->
+            <video id="hero-slide-3" class="hero-slide absolute inset-0 w-full h-full object-cover object-center" muted loop playsinline preload="metadata"
+                   poster="https://res.cloudinary.com/dvrnxd8t3/video/upload/v1789767546/IMG_7109_cij1pu.mp4" style="opacity:0; z-index:1;" aria-label="Mobster Clothing campaign video">
+                <source src="https://res.cloudinary.com/dvrnxd8t3/video/upload/v1789767546/IMG_7109_cij1pu.mp4" type="video/mp4">
+            </video>
             <!-- Dark gradient overlay -->
             <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0.1) 100%); z-index:2;"></div>
             <!-- Subtle stripe overlay -->
@@ -601,6 +606,7 @@
             <!-- Dot indicators -->
             <div class="absolute bottom-3 left-0 right-0 flex justify-center gap-2" style="z-index:4;">
                 <span class="hero-dot" style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:1;transition:opacity 0.5s;display:inline-block;"></span>
+                <span class="hero-dot" style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:0.35;transition:opacity 0.5s;display:inline-block;"></span>
                 <span class="hero-dot" style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:0.35;transition:opacity 0.5s;display:inline-block;"></span>
                 <span class="hero-dot" style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:0.35;transition:opacity 0.5s;display:inline-block;"></span>
             </div>
@@ -662,13 +668,22 @@
                 var slides = document.querySelectorAll('.hero-slide');
                 var dots = document.querySelectorAll('.hero-dot');
                 var current = 0;
+                function setActiveSlide(index) {
+                    slides[index].style.opacity = '1';
+                    dots[index].style.opacity = '1';
+                    if (slides[index].tagName === 'VIDEO') {
+                        slides[index].currentTime = 0;
+                        slides[index].play().catch(function() {});
+                    }
+                }
                 function nextSlide() {
                     slides[current].style.opacity = '0';
                     dots[current].style.opacity = '0.35';
+                    if (slides[current].tagName === 'VIDEO') slides[current].pause();
                     current = (current + 1) % slides.length;
-                    slides[current].style.opacity = '1';
-                    dots[current].style.opacity = '1';
+                    setActiveSlide(current);
                 }
+                setActiveSlide(current);
                 setInterval(nextSlide, 3500);
             })();
         </script>
@@ -709,16 +724,38 @@
     <!--               ABOUT PAGE                -->
     <!-- ═══════════════════════════════════════ -->
     <div id="page-about" class="page">
-        <!-- Image hero -->
-        <section class="relative h-64 overflow-hidden">
-            <img src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/rpaahldkdcaqs1hndpxm.jpg"
-                 alt="About" class="absolute inset-0 w-full h-full object-cover object-center">
-            <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.1) 100%);"></div>
+        <!-- Video hero card -->
+        <section class="relative mx-6 mt-6 h-72 overflow-hidden rounded-sm bg-black">
+            <video class="absolute inset-0 w-full h-full object-cover" autoplay muted loop playsinline preload="metadata"
+                   poster="https://res.cloudinary.com/dvrnxd8t3/video/upload/v1789767548/IMG_7108_srjsxm.mp4"
+                   aria-label="Mobster Clothing visual campaign video">
+                <source src="https://res.cloudinary.com/dvrnxd8t3/video/upload/v1789767548/IMG_7108_srjsxm.mp4">
+            </video>
+            <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.18) 60%, rgba(0,0,0,0.08) 100%);"></div>
             <div class="absolute inset-0 pointer-events-none"
                  style="background: repeating-linear-gradient(-45deg, transparent, transparent 18px, rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 20px);"></div>
             <div class="absolute bottom-0 left-0 px-6 pb-7">
                 <p class="text-[10px] uppercase tracking-[4px] text-white/60 mb-2">Our Story</p>
                 <h2 class="serif text-4xl text-white font-bold leading-tight">Born in the streets.<br><em>Built for the bold.</em></h2>
+            </div>
+            <span class="absolute top-4 right-4 text-[9px] uppercase tracking-[3px] text-white/70 border border-white/30 px-3 py-1.5">Motion / 01</span>
+        </section>
+
+        <!-- Original hero image in a small card grid -->
+        <section class="px-6 mt-5">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="relative aspect-[4/5] overflow-hidden rounded-sm bg-gray-100">
+                    <img src="https://res.cloudinary.com/dvrnxd8t3/image/upload/v1789769543/photo_1_2026-09-18_22-10-14_nwgtja.jpg"
+                         alt="Mobster Clothing campaign" class="w-full h-full object-cover object-center">
+                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent p-3 pt-10">
+                        <p class="text-[9px] uppercase tracking-[2px] text-white">Campaign / 01</p>
+                    </div>
+                </div>
+                <div class="aspect-[4/5] border border-gray-200 bg-[#f7f7f5] p-4 flex flex-col justify-between">
+                    <p class="text-[9px] uppercase tracking-[3px] text-gray-400">The Mobster Code</p>
+                    <p class="serif text-xl leading-tight text-black">Quiet confidence.<br><em>Unmistakable presence.</em></p>
+                    <span class="text-[9px] uppercase tracking-[2px] text-gray-400">Obuasi, Ghana</span>
+                </div>
             </div>
         </section>
 
@@ -786,7 +823,7 @@
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Studio</p>
-                        <p class="text-sm"> Obuasi, Ghana</p>
+                        <p class="text-sm">Mobster HQ, Obuasi, Ghana</p>
                     </div>
                 </div>
                 <div class="flex items-start gap-4">
@@ -797,7 +834,7 @@
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Phone</p>
-                        <p class="text-sm">+233 5504 16292</p>
+                        <p class="text-sm">+233 20 000 0000</p>
                     </div>
                 </div>
             </div>
@@ -1097,6 +1134,9 @@
                             <span>Upload product photos</span>
                         </button>
                         <p class="adm-hint">JPG / PNG / WEBP — you can pick more than one. First image is the cover.</p>
+                        <!-- Test button: tap to see exact Cloudinary response in the status bar -->
+                        <input id="adm-test-file" type="file" accept="image/*" style="display:none;" onchange="testCloudinaryUpload(this.files[0])">
+                        <button type="button" class="adm-linkish" onclick="document.getElementById('adm-test-file').click()" style="color:#3b82f6;"> (pick any image to see Cloudinary response)</button>
 
                         <div id="adm-upload-status" class="adm-upload-status"></div>
 
@@ -1218,6 +1258,29 @@
         // ── ADMIN: Passkey (defined first to avoid TDZ errors) ──
         const ADMIN_PASSKEY = 'mobster2026';
 
+        // ── URL helpers — defined first so everything below can use them ──
+        function isLocalUrl(url) {
+            return !!(url && (url.startsWith('data:') || url.startsWith('blob:')));
+        }
+        function toAbsoluteImgUrl(src) {
+            if (!src) return '';
+            if (src.startsWith('data:') || src.startsWith('blob:')) return '';
+            if (/^https?:\/\//i.test(src)) return src;
+            try { return new URL(src, window.location.href).href; } catch(e) { return src; }
+        }
+        function getCartImageUrl(item) {
+            // 1. Live catalog — always the freshest Cloudinary URL
+            const product = (window.adminProducts || []).find(p =>
+                (item.productId && p.id === item.productId) || p.name === item.name
+            );
+            if (product && product.images && product.images[0] && !isLocalUrl(product.images[0]))
+                return toAbsoluteImgUrl(product.images[0]);
+            // 2. Stored at add-to-bag time
+            if (item.imageUrl && !isLocalUrl(item.imageUrl)) return toAbsoluteImgUrl(item.imageUrl);
+            // 3. img field (blob/data → returns '')
+            return toAbsoluteImgUrl(item.img);
+        }
+
         // ── Product Rendering Functions ─────────────────────
         function renderHomePage() {
             const homeGrid = document.querySelector('#page-home main.grid');
@@ -1323,7 +1386,7 @@
             let images = [el.dataset.img];
             try { images = JSON.parse(el.dataset.images); } catch (err) { /* fall back to single image */ }
             const product = window.adminProducts.find(p => p.id === el.dataset.id);
-            openSheet(el.dataset.name, el.dataset.price, images, inStock, product ? product.desc : '', product && product.showStockQty === true ? product.stockQty : null);
+            openSheet(el.dataset.name, el.dataset.price, images, inStock, product ? product.desc : '', product && product.showStockQty === true ? product.stockQty : null, product ? product.id : null);
         });
 
         // ── Page routing ──────────────────────────────────
@@ -1371,10 +1434,12 @@
         const sheet = document.getElementById('product-sheet');
         let currentProduct = { name: '', price: '', img: '', inStock: true };
 
-        function openSheet(name, price, images, inStock = true, desc = '', stockQty = null) {
+        function openSheet(name, price, images, inStock = true, desc = '', stockQty = null, productId = null) {
             if (!Array.isArray(images)) images = [images]; // back-compat if ever called with a single string
             if (!images.length) images = ['https://via.placeholder.com/300x400?text=No+Image'];
-            currentProduct = { name, price, img: images[0], inStock };
+            const storedProduct = productId && window.adminProducts ? window.adminProducts.find(p => p.id === productId) : null;
+            const originalImageUrl = storedProduct && storedProduct.images && storedProduct.images[0] ? storedProduct.images[0] : images[0];
+            currentProduct = { name, price, img: images[0], imageUrl: originalImageUrl, productId, inStock };
             document.getElementById('sheet-name').textContent = name;
             document.getElementById('sheet-price').textContent = price;
 
@@ -1694,27 +1759,27 @@
             let total = 0;
             cartItemsContainer.innerHTML = cart.map(item => {
                 const itemTotal = Number(item.price.replace(/[^0-9.]/g, '')) * item.quantity;
-                const imageUrl = toAbsoluteImgUrl(item.img);
+                const imageUrl = getCartImageUrl(item);
+                const displaySrc = imageUrl || item.img || '';
                 total += itemTotal;
                 return `
                     <div class="cart-item">
-                        <img src="${item.img}" alt="${item.name}" style="cursor:pointer;" title="Tap to view full image"
-                             onclick="openProductImage('${item.img}')">
+                        <img src="${escapeHtml(displaySrc)}" alt="${escapeHtml(item.name)}"
+                             onerror="this.src='https://via.placeholder.com/60x80?text=?'"
+                             style="cursor:${imageUrl ? 'pointer' : 'default'};"
+                             ${imageUrl ? `onclick="openProductImage('${escapeHtml(imageUrl)}')"` : ''}>
                         <div class="cart-item-details">
-                            <div class="cart-item-name">${item.name}</div>
+                            <div class="cart-item-name">${escapeHtml(item.name)}</div>
                             <div class="cart-item-meta">Size: ${item.size} | Qty: ${item.quantity}</div>
-                            <div class="cart-item-price">$${itemTotal.toFixed(2)}</div>
-                            <button type="button" onclick="openProductImage('${item.img}')"
-                                    class="mt-1 text-[10px] uppercase tracking-[2px] text-gray-500 underline">
-                                🖼️ View image
-                            </button>
-                            ${imageUrl ? `<a href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener noreferrer" class="block mt-1 text-[9px] text-gray-400 underline break-all">${escapeHtml(imageUrl)}</a>` : '<p class="mt-1 text-[9px] text-gray-400">Image URL unavailable for this item</p>'}
+                            <div class="cart-item-price">GHC ${itemTotal.toFixed(2)}</div>
+                            ${imageUrl
+                                ? `<a href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener noreferrer" class="block mt-1 text-[9px] text-blue-500 underline break-all">🖼️ ${escapeHtml(imageUrl)}</a>`
+                                : '<p class="mt-1 text-[9px] text-red-400">No URL — re-upload product image via admin</p>'}
                         </div>
                     </div>
                 `;
             }).join('');
-            
-            cartTotal.textContent = `$${total.toFixed(2)}`;
+            cartTotal.textContent = `GHC ${total.toFixed(2)}`;
         }
 
         function selectDeliveryOption(option) {
@@ -1729,16 +1794,7 @@
             }
         }
 
-        // Turn any product image src into a full, tappable URL for WhatsApp / new tabs.
-        // Returns '' for inline data URLs, which can't be shared as a link.
-        function toAbsoluteImgUrl(src) {
-            if (!src) return '';
-            if (src.startsWith('data:')) return '';
-            if (/^https?:\/\//i.test(src)) return src;
-            try { return new URL(src, window.location.href).href; } catch (e) { return src; }
-        }
-
-        // Open a product image in a new tab (used by cart + admin order rows)
+        // Open a product image in a new tab
         function openProductImage(src) {
             const url = toAbsoluteImgUrl(src);
             if (!url) { showAdmToast ? showAdmToast('No shareable image link for this item') : alert('No image link available'); return; }
@@ -1761,7 +1817,8 @@
                 const itemTotal = Number(item.price.replace(/[^0-9.]/g, '')) * item.quantity;
                 message += `\n${index + 1}. ${item.name}\n   Size: ${item.size}\n   Quantity: ${item.quantity}\n   Price: ${item.price}\n   Total: GHC ${itemTotal.toFixed(2)}\n`;
                 // Tappable product photo link — opens the image for both customer and admin
-                if (item.img) message += `   🖼️ Photo: ${toAbsoluteImgUrl(item.img)}\n`;
+                const imageUrl = getCartImageUrl(item);
+                if (imageUrl) message += `   🖼️ Photo: ${imageUrl}\n`;
             });
             message += `\n*Grand Total: GHC ${total.toFixed(2)}*\n\n`;
             if (selectedDeliveryOption === 'pickup') message += '*Delivery Option:* Pick Up\n*Pickup Location:* Mobster HQ, Obuasi, Ghana\n';
@@ -1780,21 +1837,37 @@
             const size = document.querySelector('.size-btn.selected')?.textContent || 'M';
             const name = document.getElementById('sheet-name').textContent;
             const price = document.getElementById('sheet-price').textContent;
-            const img = document.getElementById('sheet-img').src;
 
-            // Check if product already exists in cart
+            // Resolve the best available image URL from the live catalog (never from DOM/blob)
+            const catalogProduct = currentProduct.productId
+                ? (window.adminProducts || []).find(p => p.id === currentProduct.productId)
+                : null;
+            const catalogUrl = catalogProduct && catalogProduct.images && catalogProduct.images[0]
+                && !isLocalUrl(catalogProduct.images[0]) ? catalogProduct.images[0] : null;
+            const imageUrl = catalogUrl
+                || (currentProduct.imageUrl && !isLocalUrl(currentProduct.imageUrl) ? currentProduct.imageUrl : null)
+                || currentProduct.img || '';
+            const img = imageUrl;
+
+            // Match by productId+size so different products never collapse into one row
             const existingItem = cart.find(item =>
-                item.name === name && item.size === size && item.price === price
+                currentProduct.productId
+                    ? item.productId === currentProduct.productId && item.size === size
+                    : item.name === name && item.size === size
             );
 
             if (existingItem) {
                 existingItem.quantity += qty;
+                existingItem.productId = currentProduct.productId || existingItem.productId;
+                existingItem.imageUrl = imageUrl;
             } else {
                 cart.push({
                     id: Date.now(),
+                    productId: currentProduct.productId,
                     name,
                     price,
                     img,
+                    imageUrl,
                     size,
                     quantity: qty
                 });
@@ -1889,8 +1962,31 @@
         //  Create one at: Cloudinary → Settings → Upload → Upload presets
         //  → Add preset → Signing mode: Unsigned → copy the preset name here.
         // ══════════════════════════════════════════════════
-        const CLOUDINARY_CLOUD_NAME = 'drmxokidg';
-        let CLOUDINARY_UPLOAD_PRESET = localStorage.getItem('mc_cloudinary_preset') || 'mobster_unsigned';
+        const CLOUDINARY_CLOUD_NAME = 'dvrnxd8t3';
+        localStorage.removeItem('mc_cloudinary_preset'); // wipe any stale cached preset
+        let CLOUDINARY_UPLOAD_PRESET = 'mobster_unsigned';
+
+        // ── Test: pick any image to see the raw Cloudinary response ──
+        async function testCloudinaryUpload(file) {
+            if (!file) return;
+            setUploadStatus('Testing connection…');
+            try {
+                const form = new FormData();
+                form.append('file', file);
+                form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+                    method: 'POST', body: form
+                });
+                const data = await res.json();
+                if (res.ok && data.secure_url) {
+                    setUploadStatus(`✅ SUCCESS — image uploaded! URL: ${data.secure_url}`, 'ok');
+                } else {
+                    setUploadStatus(`❌ FAILED (${res.status}): ${JSON.stringify(data.error || data)}`, 'err');
+                }
+            } catch(err) {
+                setUploadStatus(`❌ NETWORK ERROR: ${err.message}`, 'err');
+            }
+        }
 
         function setCloudinaryPreset() {
             const val = prompt('Cloudinary UNSIGNED upload preset name:', CLOUDINARY_UPLOAD_PRESET);
@@ -1912,7 +2008,6 @@
         }
 
         async function uploadToCloudinary(file) {
-            // Try Cloudinary first
             try {
                 const form = new FormData();
                 form.append('file', file);
@@ -1922,16 +2017,19 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.secure_url) return data.secure_url;
-                // Cloudinary failed — fall through to base64
-            } catch (_) { /* network error — fall through */ }
 
-            // Fallback: convert to base64 data URL (stored locally)
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = () => reject(new Error('Could not read file'));
-                reader.readAsDataURL(file);
-            });
+                // Give a specific, actionable error message
+                let errMsg = data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
+                if (errMsg.toLowerCase().includes('preset') || errMsg.toLowerCase().includes('not found')) {
+                    errMsg = `Upload preset "${CLOUDINARY_UPLOAD_PRESET}" not found. Go to Cloudinary → Settings → Upload Presets and ensure it exists and is set to Unsigned. Then tap the preset label here to update it.`;
+                } else if (res.status === 401 || res.status === 403) {
+                    errMsg = `Cloudinary rejected the upload (${res.status}). Make sure the preset "${CLOUDINARY_UPLOAD_PRESET}" is set to Unsigned (not Signed).`;
+                }
+                throw new Error(errMsg);
+            } catch (err) {
+                if (err && err.message) throw err;
+                throw new Error('Could not reach Cloudinary. Check your internet connection and that cloud name "' + CLOUDINARY_CLOUD_NAME + '" is correct.');
+            }
         }
 
         async function handleImageUpload(files) {
@@ -1989,19 +2087,31 @@
             const strip = document.getElementById('adm-img-preview');
             document.getElementById('adm-images').value = adminImages.join(', ');
             if (!strip) return;
-            strip.innerHTML = adminImages.map((url, i) => `
+            strip.innerHTML = adminImages.map((url, i) => {
+                const isLocal = isLocalUrl(url);
+                const warning = isLocal ? `<span style="display:block;font-size:9px;color:#c00;margin-top:2px;">⚠️ Not uploaded to Cloudinary yet — save will be blocked</span>` : '';
+                return `
                 <span class="img-preview-item">
-                    <img src="${url}" alt="Product image ${i + 1}" onclick="openProductImage('${url}')" style="cursor:pointer;" title="Tap to view full size">
+                    <img src="${url}" alt="Product image ${i + 1}" onclick="${isLocal ? '' : `openProductImage('${url}')`}" style="cursor:${isLocal ? 'default' : 'pointer'};" title="${isLocal ? 'Upload failed — image is local only' : 'Tap to view full size'}">
                     ${i === 0 ? '<span class="cover-tag">COVER</span>' : ''}
+                    ${warning}
                     <button type="button" class="rm" title="Remove" onclick="removeAdminImage(${i})">✕</button>
-                </span>
-            `).join('');
+                </span>`;
+            }).join('');
         }
 
         // ── ADMIN: Save (Add or Update) ───────────────────
         function saveProduct() {
             const name  = document.getElementById('adm-name').value.trim();
             const price = parseFloat(document.getElementById('adm-price').value);
+
+            // Block save if any image failed to upload (still a local data/blob URI)
+            const localImages = adminImages.filter(isLocalUrl);
+            if (localImages.length > 0) {
+                showAdmToast(`${localImages.length} image${localImages.length > 1 ? 's' : ''} didn't upload to Cloudinary — remove them or re-upload`);
+                setUploadStatus('Upload failed images must be removed before saving', 'err');
+                return;
+            }
             const sizes = document.getElementById('adm-sizes').value;
             const colors = selectedAdminColors.join(', ');
             const desc  = document.getElementById('adm-desc').value.trim();
@@ -2127,7 +2237,7 @@
             document.getElementById('inventory-product-body').innerHTML = slice.length ? slice.map(p => `<tr><td><strong>${p.name}</strong></td><td>${renderColorDots(p.colors)}</td><td>GHC ${Number(p.price).toFixed(2)}</td><td><span class="${p.inStock === false ? 'text-red-600' : 'text-green-700'}">${p.inStock === false ? 'Out of stock' : 'In stock'}</span></td><td><button class="stock-toggle ${p.inStock === false ? 'out' : 'in'}" onclick="toggleProductStock('${p.id}')">${p.inStock === false ? 'Set in' : 'Set out'}</button></td></tr>`).join('') : '<tr><td colspan="5" class="text-center text-gray-400 py-8">No products yet.</td></tr>';
             document.getElementById('inventory-page-label').textContent = products.length ? `Page ${inventoryPage} of ${pages}` : '';
             document.getElementById('inventory-pagination').innerHTML = Array.from({length: pages}, (_, i) => `<button class="inventory-page-btn ${i+1 === inventoryPage ? 'active' : ''}" onclick="inventoryPage=${i+1};renderInventory()">${i+1}</button>`).join('');
-            document.getElementById('inventory-order-body').innerHTML = orders.length ? orders.map(o => `<tr><td>${new Date(o.createdAt).toLocaleString()}</td><td><strong>${o.id}</strong><br><span class="text-gray-400">${o.items.length} item(s)</span><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${(o.items || []).filter(it => it.img).map(it => { const url = toAbsoluteImgUrl(it.img); return `<div style="display:flex;flex-direction:column;gap:3px;"><img src="${it.img}" alt="${it.name}" title="${it.name} — tap to view" onclick="openProductImage('${it.img}')" style="width:34px;height:42px;object-fit:cover;border:1px solid #e5e5e5;cursor:pointer;">${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="font-size:9px;max-width:120px;word-break:break-all;color:#777;text-decoration:underline;">${escapeHtml(url)}</a>` : ''}</div>`; }).join('')}</div></td><td>${o.deliveryOption === 'delivery' ? `${o.customer.name}<br>${o.customer.phone}` : 'Pick up'}</td><td>GHC ${Number(o.total).toFixed(2)}</td></tr>`).join('') : '<tr><td colspan="4" class="text-center text-gray-400 py-8">No checkout records yet.</td></tr>';
+            document.getElementById('inventory-order-body').innerHTML = orders.length ? orders.map(o => `<tr><td>${new Date(o.createdAt).toLocaleString()}</td><td><strong>${o.id}</strong><br><span class="text-gray-400">${o.items.length} item(s)</span><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${(o.items || []).filter(it => it.img).map(it => { const url = getCartImageUrl(it); return `<div style="display:flex;flex-direction:column;gap:3px;"><img src="${it.img}" alt="${it.name}" title="${it.name} — tap to view" onclick="openProductImage('${it.img}')" style="width:34px;height:42px;object-fit:cover;border:1px solid #e5e5e5;cursor:pointer;">${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="font-size:9px;max-width:120px;word-break:break-all;color:#777;text-decoration:underline;">${escapeHtml(url)}</a>` : '<span style="font-size:9px;color:#999;">No public URL</span>'}</div>`; }).join('')}</div></td><td>${o.deliveryOption === 'delivery' ? `${o.customer.name}<br>${o.customer.phone}` : 'Pick up'}</td><td>GHC ${Number(o.total).toFixed(2)}</td></tr>`).join('') : '<tr><td colspan="4" class="text-center text-gray-400 py-8">No checkout records yet.</td></tr>';
         }
         function printTable(title, headers, rows) { const w = window.open('', '_blank'); w.document.write(`<html><head><title>${title}</title><style>body{font-family:Arial;padding:28px}h1{font-size:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px}th{background:#f5f5f5}</style></head><body><h1>${title}</h1><p>Generated ${new Date().toLocaleString()}</p><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`); w.document.close(); }
         function exportInventoryPDF() { const rows = window.adminProducts.map(p=>[p.name,p.colors||'—',`GHC ${Number(p.price).toFixed(2)}`,p.inStock===false?'Out of stock':'In stock']); printTable('Mobster Clothing Inventory',['Product','Color','Price','Status'],rows); }
