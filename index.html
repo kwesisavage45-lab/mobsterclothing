@@ -1,0 +1,2029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOBSTER CLOTHING |Streetwear, Ghana</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-analytics.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD7-zXIt8pam9HD8CPkYxW1EA_GJe8P_wE",
+            authDomain: "mobster-clothing.firebaseapp.com",
+            projectId: "mobster-clothing",
+            storageBucket: "mobster-clothing.firebasestorage.app",
+            messagingSenderId: "590505506808",
+            appId: "1:590505506808:web:dd43322662a0b4a58a480d",
+            measurementId: "G-QHMJK3NEQN"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+
+        // Expose db and Firestore helpers to global scope for use in non-module scripts
+        window.__db = db;
+        window.__fsHelpers = { collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, addDoc };
+
+        // Load products from Firestore on startup
+        async function loadProductsFromFirestore() {
+            try {
+                const snapshot = await getDocs(collection(db, "products"));
+                if (!snapshot.empty) {
+                    const products = [];
+                    snapshot.forEach(d => products.push({ id: d.id, ...d.data() }));
+                    window.adminProducts = products;
+                    if (typeof renderAdminGrid === 'function') renderAdminGrid();
+                    if (typeof renderShopPage === 'function') renderShopPage();
+                    if (typeof renderHomePage === 'function') renderHomePage();
+                } else {
+                    // Firestore empty — seed defaults and push them up
+                    if (window.adminProducts && window.adminProducts.length > 0) {
+                        for (const p of window.adminProducts) {
+                            await setDoc(doc(db, "products", p.id), p);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Firestore load failed, falling back to localStorage:", err);
+            }
+        }
+
+        // Override saveToStorage to write to Firestore
+        window.saveToStorage = async function() {
+            const { doc: fsDoc, setDoc: fsSetDoc } = window.__fsHelpers;
+            const db = window.__db;
+            try {
+                for (const p of window.adminProducts) {
+                    await fsSetDoc(fsDoc(db, "products", p.id), p);
+                }
+                // Persist locally as backup
+                localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
+            } catch (err) {
+                console.warn("Firestore save failed, using localStorage only:", err);
+                localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
+            }
+        };
+
+        // Override deleteFromStorage to also remove from Firestore
+        window.deleteFromStorage = async function(id) {
+            const { doc: fsDoc, deleteDoc: fsDeleteDoc } = window.__fsHelpers;
+            const db = window.__db;
+            try {
+                await fsDeleteDoc(fsDoc(db, "products", id));
+                localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
+            } catch (err) {
+                console.warn("Firestore delete failed:", err);
+                localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
+            }
+        };
+
+        // Store a completed checkout in Firestore when available.
+        window.saveOrderToStorage = async function(order) {
+            try {
+                const { collection: fsCollection, addDoc: fsAddDoc } = window.__fsHelpers;
+                await fsAddDoc(window.__db, fsCollection(window.__db, "orders"), order);
+            } catch (err) {
+                console.warn("Firestore order save failed, using localStorage only:", err);
+            }
+            const orders = JSON.parse(localStorage.getItem('mc_orders') || '[]');
+            orders.unshift(order);
+            localStorage.setItem('mc_orders', JSON.stringify(orders));
+        };
+
+        // Kick off load after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProductsFromFirestore();
+        });
+    </script>
+
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; }
+        .serif { font-family: 'Playfair Display', serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Page transitions */
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Hamburger menu overlay */
+        #menu-overlay {
+            position: fixed; inset: 0; z-index: 200;
+            background: #0a0a0a;
+            transform: translateX(-100%);
+            transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
+        }
+        #menu-overlay.open { transform: translateX(0); }
+
+        /* Stripe accent */
+        .stripe-accent {
+            display: inline-block;
+            position: relative;
+        }
+        .stripe-accent::after {
+            content: '';
+            position: absolute;
+            bottom: -2px; left: 0; right: 0;
+            height: 3px;
+            background: repeating-linear-gradient(90deg, #fff 0, #fff 6px, transparent 6px, transparent 10px);
+        }
+
+        /* Product card hover */
+        .product-card .card-img { transition: transform 0.5s ease; }
+        .product-card:hover .card-img { transform: scale(1.04); }
+
+        /* Diagonal stripe bg */
+        .stripe-bg {
+            background-image: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 18px,
+                rgba(0,0,0,0.03) 18px,
+                rgba(0,0,0,0.03) 20px
+            );
+        }
+
+        /* Nav item underline */
+        .nav-item { position: relative; cursor: pointer; }
+        .nav-item::after {
+            content: ''; position: absolute; bottom: -4px; left: 0; right: 0;
+            height: 2px; background: #000;
+            transform: scaleX(0); transform-origin: left;
+            transition: transform 0.25s ease;
+        }
+        .nav-item.active::after, .nav-item:hover::after { transform: scaleX(1); }
+        .nav-item.active { font-weight: 500; }
+        .nav-item-white::after { background: #fff; }
+        .nav-item-white.active, .nav-item-white:hover { color: #fff; }
+
+        /* Product sheet (slide-up drawer) */
+        #product-sheet {
+            position: fixed; inset: 0; z-index: 300;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            pointer-events: none;
+        }
+        #sheet-backdrop {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0);
+            transition: background 0.35s ease;
+        }
+        #sheet-panel {
+            position: relative; z-index: 1;
+            background: #fff;
+            border-radius: 16px 16px 0 0;
+            padding: 28px 24px 32px;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
+            max-height: 88vh;
+            overflow-y: auto;
+        }
+        #product-sheet.open { pointer-events: all; }
+        #product-sheet.open #sheet-backdrop { background: rgba(0,0,0,0.45); }
+        #product-sheet.open #sheet-panel { transform: translateY(0); }
+
+        /* Size buttons */
+        .size-btn {
+            border: 1px solid #d1d5db;
+            padding: 6px 14px;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+        }
+        .size-btn.selected { border-color: #000; background: #000; color: #fff; }
+        .size-btn:hover:not(.selected) { border-color: #000; }
+
+        /* Qty stepper */
+        .qty-btn {
+            width: 34px; height: 34px;
+            border: 1px solid #e5e7eb;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; cursor: pointer; transition: all 0.2s;
+            background: #fff; user-select: none;
+        }
+        .qty-btn:hover { border-color: #000; }
+
+        /* ── ADMIN PANEL ───────────────────────── */
+        #admin-passkey-modal {
+            position: fixed; inset: 0; z-index: 600;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+            display: none; align-items: center; justify-content: center;
+        }
+        #admin-passkey-modal.open { display: flex !important; }
+        #admin-passkey-box {
+            background: #fff;
+            width: 92%; max-width: 360px;
+            padding: 36px 28px 32px;
+            border-top: 4px solid #000;
+            animation: fadeIn 0.25s ease;
+        }
+        #admin-overlay {
+            position: fixed; inset: 0; z-index: 500;
+            background: #f7f7f5;
+            display: none; flex-direction: column;
+            overflow-y: auto;
+        }
+        #admin-overlay.open { display: flex; }
+
+        /* admin form inputs */
+        .adm-input {
+            width: 100%; border: 1px solid #e5e7eb;
+            padding: 10px 14px; font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            outline: none; transition: border-color 0.2s;
+            background: #fff;
+        }
+        .adm-input:focus { border-color: #000; }
+        .adm-label {
+            display: block; font-size: 9px;
+            text-transform: uppercase; letter-spacing: 3px;
+            color: #9ca3af; margin-bottom: 6px;
+        }
+        .adm-label span.req { color: #000; }
+
+        /* admin product cards */
+        .adm-product-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+        .adm-product-card .adm-thumb {
+            width: 100%; aspect-ratio: 3/4;
+            object-fit: cover; display: block;
+            background: #f3f4f6;
+        }
+
+        /* image preview strip */
+        .img-preview-strip {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+        }
+        .img-preview-strip img {
+            width: 64px; height: 64px;
+            object-fit: cover;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* admin action btns */
+        .adm-btn-edit {
+            background: #000; color: #fff;
+            font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+            padding: 7px 14px; border: none; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .adm-btn-edit:hover { background: #333; }
+        .adm-btn-del {
+            background: #fff; color: #000;
+            font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+            padding: 7px 14px; border: 1px solid #e5e7eb; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .adm-btn-del:hover { border-color: #ef4444; color: #ef4444; }
+
+        /* Admin size buttons */
+        .adm-size-btn {
+            border: 1px solid #d1d5db;
+            padding: 6px 12px;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+            border-radius: 4px;
+        }
+        .adm-size-btn.selected { border-color: #000; background: #000; color: #fff; }
+        .adm-size-btn:hover:not(.selected) { border-color: #000; }
+
+        .color-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* ── Admin: live colour wheel ────────────────── */
+        .color-wheel-wrap {
+            display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start;
+            border: 1px solid #f0f0f0; background: #fafafa; padding: 14px; border-radius: 6px;
+        }
+        .color-wheel-stage { position: relative; width: 220px; height: 220px; flex: 0 0 auto; touch-action: none; }
+        #adm-color-wheel { width: 220px; height: 220px; cursor: crosshair; border-radius: 50%; display: block; touch-action: none; }
+        .wheel-marker {
+            position: absolute; width: 18px; height: 18px; border-radius: 50%;
+            border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.45), 0 1px 4px rgba(0,0,0,.35);
+            transform: translate(-50%, -50%); pointer-events: none; left: 50%; top: 50%;
+        }
+        .color-wheel-side { flex: 1 1 180px; min-width: 170px; }
+        .color-live {
+            width: 100%; height: 54px; border: 1px solid #e5e7eb; border-radius: 4px;
+            background: #10B981; transition: background .08s linear;
+        }
+        .color-live-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+        .color-live-name { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #6b7280; }
+        .color-hex-input {
+            width: 92px; border: 1px solid #e5e7eb; padding: 6px 8px; font-size: 11px;
+            font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; background: #fff;
+        }
+        .color-hex-input:focus { outline: none; border-color: #000; }
+        .light-slider { width: 100%; accent-color: #000; margin-top: 2px; }
+        .color-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .color-chip {
+            display: inline-flex; align-items: center; gap: 7px;
+            border: 1px solid #e5e7eb; background: #fff; border-radius: 999px;
+            padding: 5px 10px 5px 6px; font-size: 10px; letter-spacing: .06em;
+        }
+        .color-chip .dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
+        .color-chip button {
+            border: none; background: none; cursor: pointer; color: #9ca3af;
+            font-size: 12px; line-height: 1; padding: 0 2px;
+        }
+        .color-chip button:hover { color: #ef4444; }
+
+        /* ── Admin: image upload ─────────────────────── */
+        .adm-upload-btn {
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+            border: 1px dashed #c8c8c8; background: #fafafa; color: #111;
+            padding: 16px; font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+            cursor: pointer; transition: all .2s; border-radius: 4px;
+        }
+        .adm-upload-btn:hover { border-color: #000; background: #f3f3f3; }
+        .adm-upload-btn[disabled] { opacity: .55; cursor: wait; }
+        .adm-hint { font-size: 9px; color: #9ca3af; margin-top: 6px; letter-spacing: .04em; }
+        .adm-upload-status { font-size: 10px; margin-top: 8px; letter-spacing: .04em; }
+        .adm-upload-status.err { color: #ef4444; }
+        .adm-upload-status.ok { color: #15803d; }
+        .adm-linkish {
+            background: none; border: none; padding: 0; margin-top: 10px;
+            font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+            color: #9ca3af; text-decoration: underline; cursor: pointer;
+        }
+        .adm-linkish:hover { color: #000; }
+        .adm-mini-btn {
+            border: 1px solid #000; background: #000; color: #fff;
+            font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+            padding: 9px 14px; cursor: pointer; transition: background .2s;
+        }
+        .adm-mini-btn:hover { background: #333; }
+        .img-preview-item { position: relative; display: inline-block; }
+        .img-preview-item .rm {
+            position: absolute; top: -6px; right: -6px; width: 18px; height: 18px;
+            border-radius: 50%; background: #000; color: #fff; border: none;
+            font-size: 10px; line-height: 1; cursor: pointer;
+        }
+        .img-preview-item .cover-tag {
+            position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.65);
+            color: #fff; font-size: 7px; letter-spacing: 1px; text-align: center; padding: 2px 0;
+        }
+
+
+        /* Inventory manager */
+        .inventory-table-wrap { overflow-x: auto; border: 1px solid #e5e7eb; background: #fff; }
+        .inventory-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 11px; }
+        .inventory-table th { background: #fafafa; color: #9ca3af; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; text-align: left; padding: 12px; border-bottom: 1px solid #e5e7eb; }
+        .inventory-table td { padding: 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        .inventory-table tr:last-child td { border-bottom: 0; }
+        .stock-toggle { border: 1px solid #d1d5db; padding: 6px 10px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; background: #fff; }
+        .stock-toggle.in { background: #ecfdf5; border-color: #86efac; color: #166534; }
+        .stock-toggle.out { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
+        .inventory-page-btn { border: 1px solid #e5e7eb; padding: 6px 10px; font-size: 10px; background: #fff; cursor: pointer; }
+        .inventory-page-btn.active, .inventory-page-btn:hover { background: #000; border-color: #000; color: #fff; }
+
+        /* toast */
+        .adm-toast {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: #000; color: #fff;
+            font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+            padding: 10px 22px; z-index: 700;
+            opacity: 0; transition: opacity 0.3s ease;
+            white-space: nowrap;
+        }
+        .adm-toast.show { opacity: 1; }
+
+        /* Checkout modal */
+        #checkout-modal {
+            position: fixed; inset: 0; z-index: 400;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            pointer-events: none;
+        }
+        #checkout-backdrop {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0);
+            transition: background 0.35s ease;
+        }
+        #checkout-panel {
+            position: relative; z-index: 1;
+            background: #fff;
+            border-radius: 16px 16px 0 0;
+            padding: 28px 24px 32px;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #checkout-modal.open { pointer-events: all; }
+        #checkout-modal.open #checkout-backdrop { background: rgba(0,0,0,0.45); }
+        #checkout-modal.open #checkout-panel { transform: translateY(0); }
+
+        .delivery-option {
+            border: 1px solid #d1d5db;
+            transition: all 0.2s;
+        }
+        .delivery-option.selected {
+            border-color: #000;
+            background: #000;
+            color: #fff;
+        }
+        .delivery-option:hover:not(.selected) {
+            border-color: #000;
+        }
+        .delivery-option.selected svg {
+            stroke: #fff;
+        }
+
+        .cart-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #f3f4f6;
+            border-radius: 8px;
+        }
+        .cart-item img {
+            width: 60px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .cart-item-details {
+            flex: 1;
+        }
+        .cart-item-name {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            line-height: 1.2;
+        }
+        .cart-item-meta {
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+        .cart-item-price {
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-900 pb-20">
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--              MENU OVERLAY               -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="menu-overlay">
+        <div class="flex flex-col h-full px-10 py-12">
+            <!-- Close -->
+            <div class="flex justify-between items-center mb-16">
+                <span class="serif text-white text-2xl tracking-widest font-bold">MOBSTER CLOTHING</span>
+                <button id="close-menu" class="text-white w-8 h-8 flex items-center justify-center">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Nav Links -->
+            <nav class="flex flex-col gap-8">
+                <a class="menu-link serif text-5xl text-white/80 hover:text-white transition-colors duration-200 font-bold tracking-tight cursor-pointer" data-page="home">Home</a>
+                <a class="menu-link serif text-5xl text-white/80 hover:text-white transition-colors duration-200 font-bold tracking-tight cursor-pointer" data-page="shop">Shop</a>
+                <a class="menu-link serif text-5xl text-white/80 hover:text-white transition-colors duration-200 font-bold tracking-tight cursor-pointer" data-page="about">About</a>
+                <a class="menu-link serif text-5xl text-white/80 hover:text-white transition-colors duration-200 font-bold tracking-tight cursor-pointer" data-page="contact">Contact</a>
+            </nav>
+
+            <div class="mt-auto">
+                <div class="h-px bg-white/20 mb-6"></div>
+                <p class="text-white/40 text-xs uppercase tracking-widest">© 2024 Mobster Clothing, Accra — Ghana</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--               HEADER                    -->
+    <!-- ═══════════════════════════════════════ -->
+    <header class="sticky top-0 bg-white/90 backdrop-blur-md z-50 flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <button id="open-menu" class="w-6 h-6 flex flex-col justify-between group">
+            <span class="block h-0.5 w-6 bg-black transition-all"></span>
+            <span class="block h-0.5 w-4 bg-black group-hover:w-6 transition-all duration-300"></span>
+            <span class="block h-0.5 w-6 bg-black transition-all"></span>
+        </button>
+        <h1 id="brand-logo" class="serif text-xl tracking-widest font-bold cursor-pointer select-none" onclick="showPage('home')" ondblclick="openAdminPasskey()">MOBSTER CLOTHING</h1>
+        <!-- Cart -->
+        <div class="relative">
+            <button onclick="openCart()" class="relative">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                </svg>
+                <span class="absolute -top-1 -right-1 bg-black text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--               HOME PAGE                 -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="page-home" class="page active">
+        <!-- Hero Banner -->
+        <section class="relative overflow-hidden mx-6 mt-6 rounded-sm" id="hero-section">
+            <!-- Slide 1 -->
+            <img id="hero-slide-0" src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/rpaahldkdcaqs1hndpxm.jpg"
+                 alt="Hero 1" class="hero-slide absolute inset-0 w-full h-full object-cover object-top" style="opacity:1; z-index:1;">
+            <!-- Slide 2 -->
+            <img id="hero-slide-1" src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/rdvpj0xz11c7dotzdokx.jpg"
+                 alt="Hero 2" class="hero-slide absolute inset-0 w-full h-full object-cover object-center" style="opacity:0; z-index:1;">
+            <!-- Slide 3 -->
+            <img id="hero-slide-2" src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/zeayrbuuevpm8e1cxvui.jpg"
+                 alt="Hero 3" class="hero-slide absolute inset-0 w-full h-full object-cover object-top" style="opacity:0; z-index:1;">
+            <!-- Dark gradient overlay -->
+            <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 60%, rgba(0,0,0,0.1) 100%); z-index:2;"></div>
+            <!-- Subtle stripe overlay -->
+            <div class="absolute inset-0 pointer-events-none"
+                 style="background: repeating-linear-gradient(-45deg, transparent, transparent 18px, rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 20px); z-index:2;"></div>
+            <!-- Dot indicators -->
+            <div class="absolute bottom-3 left-0 right-0 flex justify-center gap-2" style="z-index:4;">
+                <span class="hero-dot" style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:1;transition:opacity 0.5s;display:inline-block;"></span>
+                <span class="hero-dot" style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:0.35;transition:opacity 0.5s;display:inline-block;"></span>
+                <span class="hero-dot" style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:0.35;transition:opacity 0.5s;display:inline-block;"></span>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 text-center pb-8" style="z-index:3;">
+                <p class="text-white/60 text-[10px] uppercase tracking-[4px] mb-1">.</p>
+                <h2 class="serif text-white text-4xl font-bold italic">Who $ Bigger Than The Mob?</h2>
+                <button onclick="showPage('shop')" class="mt-4 text-[10px] uppercase tracking-[3px] text-white border border-white/50 px-6 py-2 hover:bg-white hover:text-black transition-colors duration-300">
+                    View Collection
+                </button>
+            </div>
+        </section>
+        <style>
+            .hero-slide { transition: opacity 1.2s ease-in-out; }
+
+            /* ── Hero height ──
+               Mobile: nearly full screen (viewport minus header + bottom nav),
+               leaving a sliver of the next section visible to hint at scroll. */
+            #hero-section {
+                height: calc(100vh - 170px);   /* fallback */
+                height: calc(100svh - 170px);  /* modern mobile: ignores URL bar shifts */
+                min-height: 420px;
+                max-height: 820px;
+            }
+            /* Tablet */
+            @media (min-width: 640px) {
+                #hero-section {
+                    height: clamp(560px, 80vh, 900px);
+                    min-height: 560px;
+                    max-height: none;
+                }
+            }
+            /* Desktop: grows downward so it reads larger */
+            @media (min-width: 1024px) {
+                #hero-section {
+                    height: clamp(700px, 90vh, 1100px);
+                    min-height: 700px;
+                    max-height: none;
+                }
+            }
+            /* Large desktop / wide monitors */
+            @media (min-width: 1536px) {
+                #hero-section {
+                    height: clamp(780px, 92vh, 1200px);
+                    min-height: 780px;
+                }
+            }
+            /* Scale the hero copy with the bigger box */
+            @media (min-width: 1024px) {
+                #hero-section h2 { font-size: 3.75rem; line-height: 1.1; }
+                #hero-section .absolute.bottom-0 { padding-bottom: 4.5rem; }
+                #hero-section button { font-size: 12px; padding: 0.85rem 2.25rem; }
+            }
+            @media (min-width: 1536px) {
+                #hero-section h2 { font-size: 4.5rem; }
+            }
+        </style>
+        <script>
+            (function() {
+                var slides = document.querySelectorAll('.hero-slide');
+                var dots = document.querySelectorAll('.hero-dot');
+                var current = 0;
+                function nextSlide() {
+                    slides[current].style.opacity = '0';
+                    dots[current].style.opacity = '0.35';
+                    current = (current + 1) % slides.length;
+                    slides[current].style.opacity = '1';
+                    dots[current].style.opacity = '1';
+                }
+                setInterval(nextSlide, 3500);
+            })();
+        </script>
+
+        <!-- Category Tabs -->
+        <section class="mt-8 px-6">
+            <h2 class="serif text-xl text-center tracking-wide mb-4">NEW DROPS</h2>
+        </section>
+
+        <!-- Product Grid (home preview) -->
+        <main class="grid grid-cols-2 gap-4 px-6 mt-4">
+            <!-- Products will be dynamically loaded here -->
+        </main>
+
+        <div class="px-6 mt-6">
+            <button onclick="showPage('shop')" class="w-full border border-black py-3 text-[11px] uppercase tracking-[3px] hover:bg-black hover:text-white transition-colors duration-300">
+                View All
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--           SHOP / COLLECTION PAGE        -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="page-shop" class="page">
+        <section class="px-6 mt-6 mb-6">
+            <h2 class="serif text-2xl font-bold tracking-wide">Collection</h2>
+            <p class="text-xs text-gray-400 uppercase tracking-widest mt-1">The Collection</p>
+            <div class="h-px bg-gray-100 mt-4"></div>
+        </section>
+
+        <main class="grid grid-cols-2 gap-4 px-6">
+            <!-- Products will be dynamically loaded here -->
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--               ABOUT PAGE                -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="page-about" class="page">
+        <!-- Image hero -->
+        <section class="relative h-64 overflow-hidden">
+            <img src="https://res.cloudinary.com/drmxokidg/image/upload/v1780709757/rpaahldkdcaqs1hndpxm.jpg"
+                 alt="About" class="absolute inset-0 w-full h-full object-cover object-center">
+            <div class="absolute inset-0" style="background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.1) 100%);"></div>
+            <div class="absolute inset-0 pointer-events-none"
+                 style="background: repeating-linear-gradient(-45deg, transparent, transparent 18px, rgba(255,255,255,0.025) 18px, rgba(255,255,255,0.025) 20px);"></div>
+            <div class="absolute bottom-0 left-0 px-6 pb-7">
+                <p class="text-[10px] uppercase tracking-[4px] text-white/60 mb-2">Our Story</p>
+                <h2 class="serif text-4xl text-white font-bold leading-tight">Born in the streets.<br><em>Built for the bold.</em></h2>
+            </div>
+        </section>
+
+        <section class="px-6 mt-8 space-y-6 text-sm leading-relaxed text-gray-600">
+            <p>
+                <strong class="text-black font-medium">Mobster Clothing</strong> was born in Accra, Ghana in 2024 — a brand forged from the streets and built for those who move differently. Each piece is designed with intention, attitude, and a silent power that speaks without words.
+            </p>
+            <div class="h-px bg-gray-100"></div>
+            <div>
+                <h3 class="serif text-lg text-black font-bold mb-2">Our Philosophy</h3>
+                <p>We create clothing at the intersection of street culture and bold expression. Sharp cuts, heavyweight fabrics, and a palette rooted in power — offset by details that demand a second look.</p>
+            </div>
+            <div class="h-px bg-gray-100"></div>
+            <div>
+                <h3 class="serif text-lg text-black font-bold mb-2">Made in Ghana</h3>
+                <p>Every garment is produced locally in Ghana with pride and precision. We believe in clothing that carries weight — pieces that command respect and accumulate legacy.</p>
+            </div>
+            <div class="h-px bg-gray-100"></div>
+            <!-- Stats -->
+            <div class="grid grid-cols-3 text-center py-4">
+                <div>
+                    <p class="serif text-2xl font-bold">2024</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-1">Founded</p>
+                </div>
+                <div>
+                    <p class="serif text-2xl font-bold">12+</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-1">Countries</p>
+                </div>
+                <div>
+                    <p class="serif text-2xl font-bold">100%</p>
+                    <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-1">Ethical</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--             CONTACT PAGE                -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="page-contact" class="page">
+        <section class="px-6 mt-8">
+            <p class="text-[10px] uppercase tracking-[4px] text-gray-400 mb-2">Get in Touch</p>
+            <h2 class="serif text-3xl font-bold">Contact Us</h2>
+            <div class="h-px bg-gray-100 mt-4 mb-8"></div>
+
+            <!-- Contact details -->
+            <div class="space-y-6 mb-10">
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 border border-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Email</p>
+                        <p class="text-sm">hello@mobsterclothing.com</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 border border-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Studio</p>
+                        <p class="text-sm">Mobster HQ, Accra, Ghana</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-4">
+                    <div class="w-8 h-8 border border-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Phone</p>
+                        <p class="text-sm">+233 20 000 0000</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-px bg-gray-100 mb-8"></div>
+
+            <!-- Simple form -->
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1.5">Name</label>
+                    <input type="text" placeholder="Your name"
+                           class="w-full border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors duration-200">
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1.5">Email</label>
+                    <input type="email" placeholder="your@email.com"
+                           class="w-full border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors duration-200">
+                </div>
+                <div>
+                    <label class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1.5">Message</label>
+                    <textarea rows="4" placeholder="How can we help?"
+                              class="w-full border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors duration-200 resize-none"></textarea>
+                </div>
+                <button class="w-full bg-black text-white py-3 text-[11px] uppercase tracking-[3px] hover:bg-gray-900 transition-colors duration-200">
+                    Send Message
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--           PRODUCT SHEET DRAWER          -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="product-sheet">
+        <div id="sheet-backdrop"></div>
+        <div id="sheet-panel">
+            <!-- Handle bar -->
+            <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+
+            <!-- Product info row -->
+            <div class="flex gap-4 mb-6">
+                <div class="w-20 h-24 bg-gray-100 overflow-hidden flex-shrink-0 rounded-sm">
+                    <img id="sheet-img" src="" alt="" class="w-full h-full object-cover">
+                </div>
+                <div class="flex flex-col justify-center">
+                    <h3 id="sheet-name" class="serif text-lg font-bold leading-tight"></h3>
+                    <p id="sheet-price" class="text-sm font-medium mt-1 text-gray-700"></p>
+                </div>
+            </div>
+
+            <div class="h-px bg-gray-100 mb-5"></div>
+
+            <!-- Size selector -->
+            <div class="mb-5">
+                <p class="text-[10px] uppercase tracking-[3px] text-gray-500 mb-3">Select Size</p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="size-btn" onclick="selectSize(this)">XS</button>
+                    <button class="size-btn" onclick="selectSize(this)">S</button>
+                    <button class="size-btn selected" onclick="selectSize(this)">M</button>
+                    <button class="size-btn" onclick="selectSize(this)">L</button>
+                    <button class="size-btn" onclick="selectSize(this)">XL</button>
+                </div>
+            </div>
+
+            <div class="h-px bg-gray-100 mb-5"></div>
+
+            <!-- Quantity stepper -->
+            <div class="mb-6">
+                <p class="text-[10px] uppercase tracking-[3px] text-gray-500 mb-3">Quantity</p>
+                <div class="flex items-center gap-4">
+                    <button class="qty-btn" onclick="changeQty(-1)">−</button>
+                    <span id="qty-display" class="text-base font-medium w-6 text-center">1</span>
+                    <button class="qty-btn" onclick="changeQty(1)">+</button>
+                </div>
+            </div>
+
+            <!-- CTA -->
+            <button onclick="addToBag()" class="w-full bg-black text-white py-3.5 text-[11px] uppercase tracking-[3px] hover:bg-gray-900 transition-colors duration-200">
+                Add to Bag
+            </button>
+            <button onclick="closeSheet()" class="w-full mt-3 py-2.5 text-[10px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors">
+                Cancel
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--            CHECKOUT MODAL               -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="checkout-modal">
+        <div id="checkout-backdrop"></div>
+        <div id="checkout-panel">
+            <!-- Handle bar -->
+            <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="serif text-xl font-bold">Checkout</h2>
+                <button onclick="closeCheckout()" class="text-gray-400 hover:text-black">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="mb-6">
+                <h3 class="text-[10px] uppercase tracking-[3px] text-gray-500 mb-3">Order Summary</h3>
+                <div id="cart-items" class="space-y-3 mb-4">
+                    <!-- Cart items will be populated here -->
+                </div>
+                <div class="border-t pt-3">
+                    <div class="flex justify-between text-sm font-medium">
+                        <span>Total</span>
+                        <span id="cart-total">$0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Options -->
+            <div class="mb-6">
+                <h3 class="text-[10px] uppercase tracking-[3px] text-gray-500 mb-3">Delivery Option</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="selectDeliveryOption('pickup')" id="pickup-btn" class="delivery-option border border-gray-200 py-3 px-4 text-center hover:border-black transition-colors">
+                        <svg class="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="text-[11px] uppercase tracking-widest">Pick Up</span>
+                    </button>
+                    <button onclick="selectDeliveryOption('delivery')" id="delivery-btn" class="delivery-option border border-gray-200 py-3 px-4 text-center hover:border-black transition-colors">
+                        <svg class="w-5 h-5 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-[11px] uppercase tracking-widest">Delivery</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Delivery Form (hidden by default) -->
+            <div id="delivery-form" class="mb-6" style="display: none;">
+                <h3 class="text-[10px] uppercase tracking-[3px] text-gray-500 mb-3">Delivery Details</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1.5">Full Name</label>
+                        <input id="delivery-name" type="text" placeholder="Your full name" class="w-full border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors duration-200">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1.5">Phone Number</label>
+                        <input id="delivery-phone" type="tel" placeholder="Your phone number" class="w-full border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors duration-200">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase tracking-widest text-gray-400 block mb-1.5">Delivery Address</label>
+                        <textarea id="delivery-address" rows="3" placeholder="Your delivery address" class="w-full border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-black transition-colors duration-200 resize-none"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkout Button -->
+            <button onclick="proceedToWhatsApp()" class="w-full bg-black text-white py-3.5 text-[11px] uppercase tracking-[3px] hover:bg-gray-900 transition-colors duration-200">
+                Proceed to WhatsApp
+            </button>
+            <button onclick="closeCheckout()" class="w-full mt-3 py-2.5 text-[10px] uppercase tracking-widest text-gray-400 hover:text-black transition-colors">
+                Cancel
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--           BOTTOM NAVIGATION             -->
+    <!-- ═══════════════════════════════════════ -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-4 flex justify-between items-center z-50">
+        <!-- Home -->
+        <button class="bottom-nav-btn flex flex-col items-center gap-1" data-page="home">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+            <span class="text-[9px] uppercase">Home</span>
+        </button>
+        <!-- Shop -->
+        <button class="bottom-nav-btn flex flex-col items-center gap-1 text-gray-400" data-page="shop">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+            </svg>
+            <span class="text-[9px] uppercase">Shop</span>
+        </button>
+        <!-- Contacts -->
+        <button class="bottom-nav-btn flex flex-col items-center gap-1 text-gray-400" data-page="contact">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span class="text-[9px] uppercase">Contacts</span>
+        </button>
+        <!-- About -->
+        <button class="bottom-nav-btn flex flex-col items-center gap-1 text-gray-400" data-page="about">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-[9px] uppercase">About</span>
+        </button>
+    </nav>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--         ADMIN PASSKEY MODAL             -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="admin-passkey-modal">
+        <div id="admin-passkey-box">
+            <p class="text-[9px] uppercase tracking-[4px] text-gray-400 mb-1">Mobster Clothing</p>
+            <h2 class="serif text-2xl font-bold mb-6">Admin Access</h2>
+            <label class="adm-label">Passkey</label>
+            <input id="admin-passkey-input" type="password" class="adm-input" placeholder="Enter passkey"
+                   onkeypress="if(event.keyCode===13) { event.preventDefault(); verifyPasskey(); }">
+            <p id="passkey-error" class="text-[10px] text-red-500 mt-2" style="display:none;">Incorrect passkey. Try again.</p>
+            <div class="flex gap-3 mt-6">
+                <button onclick="verifyPasskey()" class="flex-1 bg-black text-white py-3 text-[10px] uppercase tracking-[3px] hover:bg-gray-800 transition-colors">
+                    Enter
+                </button>
+                <button onclick="closeAdminPasskey()" class="flex-1 border border-gray-200 py-3 text-[10px] uppercase tracking-[3px] hover:border-black transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!--            ADMIN PANEL                  -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="admin-overlay">
+        <!-- Admin Header -->
+        <div class="sticky top-0 bg-white border-b border-gray-100 z-10 flex items-center justify-between px-6 py-4">
+            <div>
+                <p class="text-[9px] uppercase tracking-[4px] text-gray-400">Mobster Clothing</p>
+                <h2 class="serif text-xl font-bold tracking-wide">Admin Panel</h2>
+            </div>
+            <button onclick="closeAdmin()" class="text-[9px] uppercase tracking-[3px] border border-gray-200 px-4 py-2 hover:border-black transition-colors">
+                Close ✕
+            </button>
+        </div>
+
+        <div class="px-6 py-6 max-w-2xl w-full mx-auto flex-1">
+
+            <!-- ── ADD / EDIT FORM ─────────────────── -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 id="adm-form-title" class="text-[10px] uppercase tracking-[4px] font-medium">Add New Product</h3>
+                    <button id="adm-cancel-edit" onclick="cancelEdit()" class="text-[9px] uppercase tracking-[2px] text-gray-400 hover:text-black transition-colors" style="display:none;">
+                        ✕ Cancel Edit
+                    </button>
+                </div>
+
+                <div class="space-y-4 bg-white border border-gray-100 p-5">
+                    <!-- Name (optional) -->
+                    <div>
+                        <label class="adm-label">Product Name <span style="color:#9ca3af;font-size:8px">(optional)</span></label>
+                        <input id="adm-name" type="text" class="adm-input" placeholder="e.g. Silk Slip Dress — Black">
+                    </div>
+                    <!-- Price (required) -->
+                    <div>
+                        <label class="adm-label">Price (GHC) <span class="req">*</span></label>
+                        <input id="adm-price" type="number" class="adm-input" placeholder="e.g. 850" min="0" step="0.01">
+                    </div>
+                    <!-- Images (uploaded to Cloudinary) -->
+                    <div>
+                        <label class="adm-label">Product Images <span style="color:#9ca3af;font-size:8px">(upload — auto-converted to a Cloudinary link)</span></label>
+
+                        <input id="adm-file-input" type="file" accept="image/*" multiple style="display:none;" onchange="handleImageUpload(this.files)">
+                        <button type="button" class="adm-upload-btn" onclick="document.getElementById('adm-file-input').click()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                                <path d="M12 16V4m0 0L7 9m5-5l5 5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round"/>
+                            </svg>
+                            <span>Upload product photos</span>
+                        </button>
+                        <p class="adm-hint">JPG / PNG / WEBP — you can pick more than one. First image is the cover.</p>
+
+                        <div id="adm-upload-status" class="adm-upload-status"></div>
+
+                        <!-- Preview strip (uploaded images, tap ✕ to remove) -->
+                        <div id="adm-img-preview" class="img-preview-strip"></div>
+
+                        <!-- Hidden store of final URLs (kept for save/edit compatibility) -->
+                        <input id="adm-images" type="hidden">
+
+                        <button type="button" class="adm-linkish" onclick="toggleManualUrl()">or paste an image URL</button>
+                        <div id="adm-manual-url-row" style="display:none;margin-top:6px;">
+                            <div style="display:flex;gap:6px;">
+                                <input id="adm-manual-url" type="url" class="adm-input" placeholder="https://…image.jpg" style="flex:1;">
+                                <button type="button" class="adm-mini-btn" onclick="addManualUrl()">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Size (optional) -->
+                    <div>
+                        <label class="adm-label">Sizes <span style="color:#9ca3af;font-size:8px">(optional — click to select)</span></label>
+                        <div id="adm-size-buttons" class="flex flex-wrap gap-2">
+                            <button type="button" class="adm-size-btn" data-size="S" onclick="toggleAdminSize('S')">S</button>
+                            <button type="button" class="adm-size-btn" data-size="M" onclick="toggleAdminSize('M')">M</button>
+                            <button type="button" class="adm-size-btn" data-size="L" onclick="toggleAdminSize('L')">L</button>
+                            <button type="button" class="adm-size-btn" data-size="XL" onclick="toggleAdminSize('XL')">XL</button>
+                            <button type="button" class="adm-size-btn" data-size="XXL" onclick="toggleAdminSize('XXL')">XXL</button>
+                            <button type="button" class="adm-size-btn" data-size="XXXL" onclick="toggleAdminSize('XXXL')">XXXL</button>
+                        </div>
+                        <input id="adm-sizes" type="hidden" class="adm-input">
+                    </div>
+                    <!-- Color (optional) — live colour wheel -->
+                    <div>
+                        <label class="adm-label">Colors <span style="color:#9ca3af;font-size:8px">(optional — drag the wheel, then add)</span></label>
+
+                        <div class="color-wheel-wrap">
+                            <div class="color-wheel-stage">
+                                <canvas id="adm-color-wheel" width="220" height="220"></canvas>
+                                <div id="adm-wheel-marker" class="wheel-marker"></div>
+                            </div>
+
+                            <div class="color-wheel-side">
+                                <div id="adm-color-live" class="color-live"></div>
+                                <div class="color-live-meta">
+                                    <span id="adm-color-name" class="color-live-name">Emerald</span>
+                                    <input id="adm-color-hex" type="text" class="color-hex-input" value="#10B981"
+                                           maxlength="7" oninput="setColorFromHex(this.value)">
+                                </div>
+                                <label class="adm-label" style="margin-top:8px;">Brightness</label>
+                                <input id="adm-color-light" type="range" min="10" max="95" value="50" class="light-slider"
+                                       oninput="setWheelLightness(this.value)">
+                                <button type="button" class="adm-mini-btn" style="width:100%;margin-top:8px;" onclick="addPickedColor()">+ Add colour</button>
+                            </div>
+                        </div>
+
+                        <div id="adm-color-chips" class="color-chips"></div>
+                        <input id="adm-colors" type="hidden" class="adm-input">
+                    </div>
+                    <!-- Description (optional) -->
+                    <div>
+                        <label class="adm-label">Description <span style="color:#9ca3af;font-size:8px">(optional)</span></label>
+                        <textarea id="adm-desc" class="adm-input" rows="3" placeholder="Brief product description…" style="resize:none;"></textarea>
+                    </div>
+
+                    <button id="adm-save-btn" onclick="saveProduct()" class="w-full bg-black text-white py-3 text-[10px] uppercase tracking-[4px] hover:bg-gray-800 transition-colors mt-2">
+                        Save Product
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── INVENTORY MANAGER ─────────────────── -->
+            <section class="mb-8" id="inventory-manager">
+                <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+                    <div>
+                        <h3 class="text-[10px] uppercase tracking-[4px] font-medium">Inventory Manager</h3>
+                        <p class="text-[10px] text-gray-400 mt-1">Successful checkouts are recorded here. 20 items per page.</p>
+                    </div>
+                    <button onclick="exportInventoryPDF()" class="adm-btn-edit">Save Inventory PDF</button>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div class="bg-white border border-gray-100 p-3"><p class="text-[9px] uppercase tracking-widest text-gray-400">Products</p><p id="inv-product-count" class="serif text-xl mt-1">0</p></div>
+                    <div class="bg-white border border-gray-100 p-3"><p class="text-[9px] uppercase tracking-widest text-gray-400">In Stock</p><p id="inv-stock-count" class="serif text-xl mt-1">0</p></div>
+                    <div class="bg-white border border-gray-100 p-3"><p class="text-[9px] uppercase tracking-widest text-gray-400">Orders</p><p id="inv-order-count" class="serif text-xl mt-1">0</p></div>
+                </div>
+                <div class="inventory-table-wrap">
+                    <table class="inventory-table"><thead><tr><th>Item</th><th>Color</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody id="inventory-product-body"></tbody></table>
+                </div>
+                <div class="flex items-center justify-between mt-3"><p id="inventory-page-label" class="text-[10px] text-gray-400"></p><div id="inventory-pagination" class="flex gap-1"></div></div>
+                <div class="mt-6 flex items-center justify-between"><h4 class="text-[10px] uppercase tracking-[4px] font-medium">Checkout Records</h4><button onclick="exportOrdersPDF()" class="text-[9px] uppercase tracking-[2px] border border-gray-200 px-3 py-2 hover:border-black">Save Orders PDF</button></div>
+                <div class="inventory-table-wrap mt-3"><table class="inventory-table"><thead><tr><th>Date</th><th>Order</th><th>Customer / Delivery</th><th>Total</th></tr></thead><tbody id="inventory-order-body"></tbody></table></div>
+            </section>
+
+            <!-- ── DIVIDER ──────────────────────────── -->
+            <div class="flex items-center gap-4 mb-6">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <p class="text-[9px] uppercase tracking-[4px] text-gray-400">Collection</p>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <!-- ── PRODUCT GRID ──────────────────────── -->
+            <div id="adm-product-grid" class="grid grid-cols-2 gap-4 pb-16">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin toast -->
+    <div id="adm-toast" class="adm-toast"></div>
+
+    <script>
+        // ── ADMIN: Passkey (defined first to avoid TDZ errors) ──
+        const ADMIN_PASSKEY = 'mobster2026';
+
+        // ── Product Rendering Functions ─────────────────────
+        function renderHomePage() {
+            const homeGrid = document.querySelector('#page-home main.grid');
+            if (!homeGrid) return;
+            
+            if (window.adminProducts.length === 0) {
+                homeGrid.innerHTML = '<div class="col-span-2 text-center text-gray-400 py-8">No products available.</div>';
+                return;
+            }
+            
+            // Show first 2 products on home page
+            const homeProducts = window.adminProducts.slice(0, 2);
+            homeGrid.innerHTML = homeProducts.map(product => createProductCard(product)).join('');
+        }
+        
+        function renderShopPage() {
+            const shopGrid = document.querySelector('#page-shop main.grid');
+            if (!shopGrid) return;
+            
+            if (window.adminProducts.length === 0) {
+                shopGrid.innerHTML = '<div class="col-span-2 text-center text-gray-400 py-8">No products available.</div>';
+                return;
+            }
+            
+            // Show all products on shop page
+            shopGrid.innerHTML = window.adminProducts.map(product => createProductCard(product)).join('');
+        }
+        
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function createProductCard(product) {
+            const price = product.price ? `GHC ${Number(product.price).toFixed(2)}` : 'GHC 0.00';
+            const image = (product.images && product.images[0]) ? product.images[0] : 'https://via.placeholder.com/300x400?text=No+Image';
+            const rawName = product.name || 'Unnamed Product';
+            const name = escapeHtml(rawName);
+            const inStock = product.inStock !== false;
+            const stockLabel = inStock ? 'Quick View' : 'Out of Stock';
+            const stockClass = inStock ? 'bg-black text-white hover:bg-gray-900' : 'bg-gray-200 text-gray-500 cursor-not-allowed';
+            // Data is passed via data-* attributes (not inline onclick strings) so long/special-character
+            // image URLs (e.g. base64 data URIs) can never break the markup or get truncated.
+            const dataAttrs = `data-name="${escapeHtml(rawName)}" data-price="${escapeHtml(price)}" data-img="${escapeHtml(image)}" data-instock="${inStock}"`;
+            const imgWrapAttrs = inStock ? `class="product-card-open" ${dataAttrs}` : '';
+            const btnAttrs = inStock ? `class="product-card-open w-full mt-2 ${stockClass} py-2 text-[10px] uppercase tracking-widest transition-colors" ${dataAttrs}` : `class="w-full mt-2 ${stockClass} py-2 text-[10px] uppercase tracking-widest transition-colors" disabled`;
+            return `
+                <div class="product-card group ${inStock ? 'cursor-pointer' : ''}">
+                    <div class="aspect-[3/4] bg-gray-100 overflow-hidden ${inStock ? '' : 'opacity-60'}" ${imgWrapAttrs}>
+                        <img src="${image}" alt="${name}" class="card-img w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
+                    </div>
+                    <div class="mt-3 px-1">
+                        <h3 class="text-[11px] uppercase tracking-tight font-medium leading-tight">${name}</h3>
+                        <p class="text-sm font-medium mt-1">${price}</p>
+                        <button ${btnAttrs}>${stockLabel}</button>
+                    </div>
+                </div>`;
+        }
+
+        // Delegate clicks on any element carrying product data (avoids fragile inline onclick strings)
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('.product-card-open');
+            if (!el) return;
+            const inStock = el.dataset.instock !== 'false';
+            openSheet(el.dataset.name, el.dataset.price, el.dataset.img, inStock);
+        });
+
+        // ── Page routing ──────────────────────────────────
+        function showPage(name) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const target = document.getElementById('page-' + name);
+            if (target) target.classList.add('active');
+
+            document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
+                const isActive = btn.dataset.page === name;
+                btn.classList.toggle('text-black', isActive);
+                btn.classList.toggle('text-gray-400', !isActive);
+            });
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => showPage(btn.dataset.page));
+        });
+
+        // ── Hamburger menu ────────────────────────────────
+        const overlay = document.getElementById('menu-overlay');
+
+        document.getElementById('open-menu').addEventListener('click', () => {
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        });
+
+        document.getElementById('close-menu').addEventListener('click', () => {
+            overlay.classList.remove('open');
+            document.body.style.overflow = '';
+        });
+
+        document.querySelectorAll('.menu-link').forEach(link => {
+            link.addEventListener('click', () => {
+                overlay.classList.remove('open');
+                document.body.style.overflow = '';
+                showPage(link.dataset.page);
+            });
+        });
+
+        // ── Product Sheet ─────────────────────────────────
+        let qty = 1;
+        const sheet = document.getElementById('product-sheet');
+        let currentProduct = { name: '', price: '', img: '', inStock: true };
+
+        function openSheet(name, price, img, inStock = true) {
+            currentProduct = { name, price, img, inStock };
+            document.getElementById('sheet-name').textContent = name;
+            document.getElementById('sheet-price').textContent = price;
+            document.getElementById('sheet-img').src = img;
+            qty = 1;
+            document.getElementById('qty-display').textContent = 1;
+            // Reset size to M
+            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('.size-btn')[2].classList.add('selected');
+            sheet.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSheet() {
+            sheet.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        document.getElementById('sheet-backdrop').addEventListener('click', closeSheet);
+        document.getElementById('checkout-backdrop').addEventListener('click', closeCheckout);
+
+        function selectSize(btn) {
+            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        }
+
+        function changeQty(delta) {
+            qty = Math.max(1, qty + delta);
+            document.getElementById('qty-display').textContent = qty;
+        }
+
+        // ── ADMIN: Size & Color Toggle Functions ─────────────
+        let selectedAdminSizes = [];
+
+        function toggleAdminSize(size) {
+            const btn = document.querySelector(`[data-size="${size}"]`);
+            const index = selectedAdminSizes.indexOf(size);
+            
+            if (index > -1) {
+                selectedAdminSizes.splice(index, 1);
+                btn.classList.remove('selected');
+            } else {
+                selectedAdminSizes.push(size);
+                btn.classList.add('selected');
+            }
+            
+            document.getElementById('adm-sizes').value = selectedAdminSizes.join(', ');
+        }
+
+        // ══════════════════════════════════════════════════
+        //  LIVE COLOUR WHEEL  (replaces the old preset swatches)
+        // ══════════════════════════════════════════════════
+        let selectedAdminColors = [];               // array of hex strings
+        let wheelState = { h: 160, s: 0.85, l: 50 }; // current live colour
+
+        function hslToHex(h, s, l) {
+            // h 0-360, s 0-1, l 0-100
+            const L = l / 100, a = s * Math.min(L, 1 - L);
+            const f = n => {
+                const k = (n + h / 30) % 12;
+                const c = L - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+                return Math.round(255 * c).toString(16).padStart(2, '0');
+            };
+            return ('#' + f(0) + f(8) + f(4)).toUpperCase();
+        }
+
+        function hexToHsl(hex) {
+            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            if (!m) return null;
+            let r = parseInt(m[1], 16) / 255, g = parseInt(m[2], 16) / 255, b = parseInt(m[3], 16) / 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h = 0, s = 0; const l = (max + min) / 2;
+            if (max !== min) {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                if (max === r) h = ((g - b) / d + (g < b ? 6 : 0));
+                else if (max === g) h = (b - r) / d + 2;
+                else h = (r - g) / d + 4;
+                h *= 60;
+            }
+            return { h, s, l: l * 100 };
+        }
+
+        // Rough, friendly colour names so the admin sees words, not just hex
+        function colorName(h, s, l) {
+            if (s < 0.12) {
+                if (l < 12) return 'Black';
+                if (l < 30) return 'Charcoal';
+                if (l < 55) return 'Grey';
+                if (l < 80) return 'Silver';
+                return 'White';
+            }
+            if (l < 16) return 'Black';
+            if (l > 92) return 'White';
+            const hues = [
+                [12, 'Red'], [22, 'Vermilion'], [38, 'Orange'], [50, 'Amber'], [65, 'Yellow'],
+                [85, 'Lime'], [140, 'Green'], [165, 'Emerald'], [185, 'Teal'], [200, 'Cyan'],
+                [225, 'Azure'], [250, 'Blue'], [275, 'Indigo'], [295, 'Violet'], [320, 'Magenta'],
+                [345, 'Pink'], [361, 'Red']
+            ];
+            let base = 'Colour';
+            for (const [max, name] of hues) { if (h < max) { base = name; break; } }
+            if (h > 15 && h < 45 && l < 45) base = 'Brown';
+            if (h > 15 && h < 45 && l >= 45 && s < 0.45) base = 'Tan';
+            if (l < 35) return 'Deep ' + base;
+            if (l > 75) return 'Light ' + base;
+            return base;
+        }
+
+        function drawColorWheel() {
+            const canvas = document.getElementById('adm-color-wheel');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width, r = size / 2, cx = r, cy = r;
+            const img = ctx.createImageData(size, size);
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const dx = x - cx, dy = y - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const i = (y * size + x) * 4;
+                    if (dist > r) { img.data[i + 3] = 0; continue; }
+                    let hue = Math.atan2(dy, dx) * 180 / Math.PI; if (hue < 0) hue += 360;
+                    const sat = Math.min(1, dist / r);
+                    const rgb = hexToRgbArr(hslToHex(hue, sat, wheelState.l));
+                    img.data[i] = rgb[0]; img.data[i + 1] = rgb[1]; img.data[i + 2] = rgb[2];
+                    img.data[i + 3] = dist > r - 1 ? 190 : 255;   // soft edge
+                }
+            }
+            ctx.putImageData(img, 0, 0);
+        }
+
+        function hexToRgbArr(hex) {
+            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
+        }
+
+        function updateColorLive(syncHexInput = true) {
+            const hex = hslToHex(wheelState.h, wheelState.s, wheelState.l);
+            const live = document.getElementById('adm-color-live');
+            if (live) live.style.background = hex;
+            const nameEl = document.getElementById('adm-color-name');
+            if (nameEl) nameEl.textContent = colorName(wheelState.h, wheelState.s, wheelState.l);
+            const hexEl = document.getElementById('adm-color-hex');
+            if (hexEl && syncHexInput && document.activeElement !== hexEl) hexEl.value = hex;
+            // marker position
+            const stage = document.querySelector('.color-wheel-stage');
+            const marker = document.getElementById('adm-wheel-marker');
+            if (stage && marker) {
+                const r = stage.clientWidth / 2;
+                const rad = wheelState.h * Math.PI / 180;
+                marker.style.left = (r + Math.cos(rad) * wheelState.s * (r - 2)) + 'px';
+                marker.style.top  = (r + Math.sin(rad) * wheelState.s * (r - 2)) + 'px';
+                marker.style.background = hex;
+            }
+        }
+
+        function pickFromWheelEvent(e) {
+            const canvas = document.getElementById('adm-color-wheel');
+            const rect = canvas.getBoundingClientRect();
+            const point = e.touches ? e.touches[0] : e;
+            const x = point.clientX - rect.left, y = point.clientY - rect.top;
+            const r = rect.width / 2, dx = x - r, dy = y - r;
+            let hue = Math.atan2(dy, dx) * 180 / Math.PI; if (hue < 0) hue += 360;
+            wheelState.h = hue;
+            wheelState.s = Math.min(1, Math.sqrt(dx * dx + dy * dy) / r);
+            updateColorLive();
+        }
+
+        function setWheelLightness(val) {
+            wheelState.l = Number(val);
+            drawColorWheel();
+            updateColorLive();
+        }
+
+        function setColorFromHex(val) {
+            const hex = val.trim().startsWith('#') ? val.trim() : '#' + val.trim();
+            const hsl = hexToHsl(hex);
+            if (!hsl) return;
+            wheelState = { h: hsl.h, s: hsl.s, l: hsl.l };
+            const slider = document.getElementById('adm-color-light');
+            if (slider) slider.value = Math.round(hsl.l);
+            drawColorWheel();
+            updateColorLive(false);
+        }
+
+        function addPickedColor() {
+            const hex = hslToHex(wheelState.h, wheelState.s, wheelState.l);
+            if (selectedAdminColors.includes(hex)) { showAdmToast('That colour is already added'); return; }
+            selectedAdminColors.push(hex);
+            renderColorChips();
+        }
+
+        function removePickedColor(hex) {
+            selectedAdminColors = selectedAdminColors.filter(c => c !== hex);
+            renderColorChips();
+        }
+
+        function renderColorChips() {
+            const box = document.getElementById('adm-color-chips');
+            if (!box) return;
+            box.innerHTML = selectedAdminColors.map(hex => {
+                const hsl = hexToHsl(hex);
+                const label = hsl ? colorName(hsl.h, hsl.s, hsl.l) : hex;
+                return `<span class="color-chip"><span class="dot" style="background:${hex}"></span>${label} <span style="color:#c4c4c4;font-family:monospace;">${hex}</span><button type="button" title="Remove" onclick="removePickedColor('${hex}')">✕</button></span>`;
+            }).join('');
+            document.getElementById('adm-colors').value = selectedAdminColors.join(', ');
+        }
+
+        // Render a colour string (hex list, or a legacy name like "black-white") as swatches
+        function renderColorDots(colorStr) {
+            if (!colorStr) return '<span class="text-gray-400">—</span>';
+            const parts = colorStr.split(',').map(c => c.trim()).filter(Boolean);
+            return parts.map(c => /^#[0-9a-f]{6}$/i.test(c)
+                ? `<span title="${c}" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${c};border:1px solid #e5e7eb;margin-right:4px;vertical-align:middle;"></span>`
+                : `<span style="font-size:10px;margin-right:6px;">${c}</span>`
+            ).join('');
+        }
+
+        function initColorWheel() {
+            const canvas = document.getElementById('adm-color-wheel');
+            if (!canvas || canvas.dataset.ready) return;
+            canvas.dataset.ready = '1';
+            drawColorWheel();
+            updateColorLive();
+            let dragging = false;
+            const start = e => { dragging = true; pickFromWheelEvent(e); e.preventDefault(); };
+            const move  = e => { if (dragging) { pickFromWheelEvent(e); e.preventDefault(); } };
+            const end   = () => { dragging = false; };
+            canvas.addEventListener('mousedown', start);
+            window.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', end);
+            canvas.addEventListener('touchstart', start, { passive: false });
+            canvas.addEventListener('touchmove', move, { passive: false });
+            window.addEventListener('touchend', end);
+        }
+        document.addEventListener('DOMContentLoaded', initColorWheel);
+        let cart = JSON.parse(localStorage.getItem('mc_cart') || '[]');
+        let selectedDeliveryOption = '';
+
+        function updateCartBadge() {
+            const badge = document.querySelector('header .relative span');
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            badge.textContent = totalItems;
+        }
+
+        function openCart() {
+            if (cart.length === 0) {
+                alert('Your cart is empty');
+                return;
+            }
+            renderCartItems();
+            document.getElementById('checkout-modal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkout-modal').classList.remove('open');
+            document.body.style.overflow = '';
+            // Reset delivery form
+            selectedDeliveryOption = '';
+            document.querySelectorAll('.delivery-option').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById('delivery-form').style.display = 'none';
+            document.getElementById('delivery-name').value = '';
+            document.getElementById('delivery-phone').value = '';
+            document.getElementById('delivery-address').value = '';
+        }
+
+        function renderCartItems() {
+            const cartItemsContainer = document.getElementById('cart-items');
+            const cartTotal = document.getElementById('cart-total');
+            
+            if (cart.length === 0) {
+                cartItemsContainer.innerHTML = '<p class="text-center text-gray-400 py-4">Your cart is empty</p>';
+                cartTotal.textContent = '$0';
+                return;
+            }
+            
+            let total = 0;
+            cartItemsContainer.innerHTML = cart.map(item => {
+                const itemTotal = Number(item.price.replace(/[^0-9.]/g, '')) * item.quantity;
+                total += itemTotal;
+                return `
+                    <div class="cart-item">
+                        <img src="${item.img}" alt="${item.name}" style="cursor:pointer;" title="Tap to view full image"
+                             onclick="openProductImage('${item.img}')">
+                        <div class="cart-item-details">
+                            <div class="cart-item-name">${item.name}</div>
+                            <div class="cart-item-meta">Size: ${item.size} | Qty: ${item.quantity}</div>
+                            <div class="cart-item-price">$${itemTotal.toFixed(2)}</div>
+                            <button type="button" onclick="openProductImage('${item.img}')"
+                                    class="mt-1 text-[10px] uppercase tracking-[2px] text-gray-500 underline">
+                                🖼️ View image
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            cartTotal.textContent = `$${total.toFixed(2)}`;
+        }
+
+        function selectDeliveryOption(option) {
+            selectedDeliveryOption = option;
+            document.querySelectorAll('.delivery-option').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(option + '-btn').classList.add('selected');
+            
+            if (option === 'delivery') {
+                document.getElementById('delivery-form').style.display = 'block';
+            } else {
+                document.getElementById('delivery-form').style.display = 'none';
+            }
+        }
+
+        // Turn any product image src into a full, tappable URL for WhatsApp / new tabs.
+        // Returns '' for inline data URLs, which can't be shared as a link.
+        function toAbsoluteImgUrl(src) {
+            if (!src) return '';
+            if (src.startsWith('data:')) return '';
+            if (/^https?:\/\//i.test(src)) return src;
+            try { return new URL(src, window.location.href).href; } catch (e) { return src; }
+        }
+
+        // Open a product image in a new tab (used by cart + admin order rows)
+        function openProductImage(src) {
+            const url = toAbsoluteImgUrl(src);
+            if (!url) { showAdmToast ? showAdmToast('No shareable image link for this item') : alert('No image link available'); return; }
+            window.open(url, '_blank');
+        }
+
+        async function proceedToWhatsApp() {
+            if (!selectedDeliveryOption) { alert('Please select a delivery option'); return; }
+            let customer = { name: '', phone: '', address: '' };
+            if (selectedDeliveryOption === 'delivery') {
+                customer = { name: document.getElementById('delivery-name').value.trim(), phone: document.getElementById('delivery-phone').value.trim(), address: document.getElementById('delivery-address').value.trim() };
+                if (!customer.name || !customer.phone || !customer.address) { alert('Please fill in all delivery details'); return; }
+            }
+            const total = cart.reduce((sum, item) => sum + Number(item.price.replace(/[^0-9.]/g, '')) * item.quantity, 0);
+            const order = { id: 'ORD-' + Date.now(), createdAt: new Date().toISOString(), items: cart.map(item => ({...item})), total, deliveryOption: selectedDeliveryOption, customer };
+            await window.saveOrderToStorage(order);
+
+            let message = '🛍️ *New Order — MOBSTER CLOTHING 🇬🇭*\n\n*Order ID:* ' + order.id + '\n\n*Order Details:*\n';
+            cart.forEach((item, index) => {
+                const itemTotal = Number(item.price.replace(/[^0-9.]/g, '')) * item.quantity;
+                message += `\n${index + 1}. ${item.name}\n   Size: ${item.size}\n   Quantity: ${item.quantity}\n   Price: ${item.price}\n   Total: GHC ${itemTotal.toFixed(2)}\n`;
+                // Tappable product photo link — opens the image for both customer and admin
+                if (item.img) message += `   🖼️ Photo: ${toAbsoluteImgUrl(item.img)}\n`;
+            });
+            message += `\n*Grand Total: GHC ${total.toFixed(2)}*\n\n`;
+            if (selectedDeliveryOption === 'pickup') message += '*Delivery Option:* Pick Up\n*Pickup Location:* Mobster HQ, Accra, Ghana\n';
+            else message += `*Delivery Option:* Delivery\n*Delivery Details:*\nName: ${customer.name}\nPhone: ${customer.phone}\nAddress: ${customer.address}\n`;
+            message += '\nThank you for your order!';
+            window.open(`https://wa.me/233204608631?text=${encodeURIComponent(message)}`, '_blank');
+            cart = [];
+            localStorage.setItem('mc_cart', JSON.stringify(cart));
+            updateCartBadge();
+            renderCartItems(); // clear the visible summary immediately, before the modal closes
+            closeCheckout();
+        }
+
+        function addToBag() {
+            if (!currentProduct.inStock) { showAdmToast('This product is out of stock'); return; }
+            const size = document.querySelector('.size-btn.selected')?.textContent || 'M';
+            const name = document.getElementById('sheet-name').textContent;
+            const price = document.getElementById('sheet-price').textContent;
+            const img = document.getElementById('sheet-img').src;
+
+            // Check if product already exists in cart
+            const existingItem = cart.find(item =>
+                item.name === name && item.size === size && item.price === price
+            );
+
+            if (existingItem) {
+                existingItem.quantity += qty;
+            } else {
+                cart.push({
+                    id: Date.now(),
+                    name,
+                    price,
+                    img,
+                    size,
+                    quantity: qty
+                });
+            }
+
+            localStorage.setItem('mc_cart', JSON.stringify(cart));
+            updateCartBadge();
+            closeSheet();
+
+            // Brief confirmation flash
+            const flash = document.createElement('div');
+            flash.className = 'fixed top-20 left-1/2 -translate-x-1/2 bg-black text-white text-[11px] uppercase tracking-widest px-5 py-2.5 z-[400] rounded-sm';
+            flash.style.transition = 'opacity 0.4s ease';
+            flash.textContent = `Added ${qty}× ${size} to bag`;
+            document.body.appendChild(flash);
+            setTimeout(() => { flash.style.opacity = '0'; }, 1800);
+            setTimeout(() => flash.remove(), 2300);
+        }
+
+        // ── ADMIN: Data Store ─────────────────────────────
+        // (ADMIN_PASSKEY declared at top of script)
+
+        // Seed defaults into window.adminProducts BEFORE rendering (Firestore may override later)
+        window.adminProducts = JSON.parse(localStorage.getItem('mc_admin_products') || '[]');
+        let editingId = null;
+
+        // Seed default products if localStorage is also empty
+        if (window.adminProducts.length === 0) {
+            window.adminProducts = [
+                { id: 'p1', name: 'Wool Coat — Camel', price: 295, images: ['https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L,XL', colors: 'Camel', desc: '', inStock: true },
+                { id: 'p2', name: 'Silk Slip Dress — Black', price: 180, images: ['https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L', colors: 'Black', desc: '', inStock: true },
+                { id: 'p3', name: 'Oversized Knit — Cream', price: 145, images: ['https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?auto=format&fit=crop&q=80&w=400'], sizes: 'S,M,L,XL', colors: 'Cream', desc: '', inStock: true },
+                { id: 'p4', name: 'Tailored Trousers — Black', price: 210, images: ['https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L,XL', colors: 'Black', desc: '', inStock: true },
+                { id: 'p5', name: 'Linen Blouse — White', price: 120, images: ['https://images.unsplash.com/photo-1551232864-3f0890e580d9?auto=format&fit=crop&q=80&w=400'], sizes: 'XS,S,M,L', colors: 'White', desc: '', inStock: true },
+                { id: 'p6', name: 'Leather Tote — Tan', price: 320, images: ['https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&q=80&w=400'], sizes: '', colors: 'Tan', desc: '', inStock: true },
+            ];
+            // saveToStorage will be called by the Firebase module once it's ready
+            // Fall back to localStorage immediately for faster initial render
+            localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
+        }
+
+        // ── Init — AFTER adminProducts is populated ───────
+        showPage('home');
+        updateCartBadge();
+        renderHomePage();
+        renderShopPage();
+
+        // saveToStorage is defined in the Firebase module script above;
+        // define a localStorage-only fallback in case the module hasn't loaded yet
+        if (typeof window.saveToStorage !== 'function') {
+            window.saveToStorage = function() {
+                localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
+            };
+        }
+        if (typeof window.deleteFromStorage !== 'function') {
+            window.deleteFromStorage = function(id) {
+                localStorage.setItem('mc_admin_products', JSON.stringify(window.adminProducts));
+            };
+        }
+
+        // ── ADMIN: Passkey ────────────────────────────────
+        function openAdminPasskey() {
+            const modal = document.getElementById('admin-passkey-modal');
+            modal.classList.add('open');
+            document.getElementById('admin-passkey-input').value = '';
+            document.getElementById('passkey-error').style.display = 'none';
+            setTimeout(() => {
+                document.getElementById('admin-passkey-input').focus();
+            }, 100);
+        }
+
+        function closeAdminPasskey() {
+            document.getElementById('admin-passkey-modal').classList.remove('open');
+        }
+
+        function verifyPasskey() {
+            const val = document.getElementById('admin-passkey-input').value.trim();
+            if (val === ADMIN_PASSKEY) {
+                closeAdminPasskey();
+                openAdmin();
+            } else {
+                document.getElementById('passkey-error').style.display = 'block';
+                document.getElementById('admin-passkey-input').value = '';
+                document.getElementById('admin-passkey-input').focus();
+            }
+        }
+
+        // ── ADMIN: Open / Close ───────────────────────────
+        function openAdmin() {
+            cancelEdit();
+            renderAdminGrid();
+            document.getElementById('admin-overlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+            // The wheel needs a visible, laid-out container to place its marker correctly
+
+            requestAnimationFrame(() => { initColorWheel(); drawColorWheel(); updateColorLive(); });
+        }
+
+        function closeAdmin() {
+            document.getElementById('admin-overlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        // ══════════════════════════════════════════════════
+        //  ADMIN: CLOUDINARY IMAGE UPLOAD
+        //  Uses an UNSIGNED upload preset so no secret key lives in this file.
+        //  Create one at: Cloudinary → Settings → Upload → Upload presets
+        //  → Add preset → Signing mode: Unsigned → copy the preset name here.
+        // ══════════════════════════════════════════════════
+        const CLOUDINARY_CLOUD_NAME = 'drmxokidg';
+        let CLOUDINARY_UPLOAD_PRESET = localStorage.getItem('mc_cloudinary_preset') || 'mobster_unsigned';
+
+        function setCloudinaryPreset() {
+            const val = prompt('Cloudinary UNSIGNED upload preset name:', CLOUDINARY_UPLOAD_PRESET);
+            if (val === null) return;
+            CLOUDINARY_UPLOAD_PRESET = val.trim();
+            localStorage.setItem('mc_cloudinary_preset', CLOUDINARY_UPLOAD_PRESET);
+            const lbl = document.getElementById('adm-preset-label');
+            if (lbl) lbl.textContent = CLOUDINARY_UPLOAD_PRESET;
+            showAdmToast('Upload preset saved');
+        }
+
+        let adminImages = [];   // array of final image URLs for the product being edited
+
+        function setUploadStatus(msg, kind) {
+            const el = document.getElementById('adm-upload-status');
+            if (!el) return;
+            el.className = 'adm-upload-status' + (kind ? ' ' + kind : '');
+            el.textContent = msg || '';
+        }
+
+        async function uploadToCloudinary(file) {
+            // Try Cloudinary first
+            try {
+                const form = new FormData();
+                form.append('file', file);
+                form.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+                    method: 'POST', body: form
+                });
+                const data = await res.json();
+                if (res.ok && data.secure_url) return data.secure_url;
+                // Cloudinary failed — fall through to base64
+            } catch (_) { /* network error — fall through */ }
+
+            // Fallback: convert to base64 data URL (stored locally)
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Could not read file'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleImageUpload(files) {
+            if (!files || !files.length) return;
+            const btn = document.querySelector('.adm-upload-btn');
+            if (btn) btn.disabled = true;
+
+            let done = 0, failed = 0;
+            for (const file of Array.from(files)) {
+                if (!file.type.startsWith('image/')) { failed++; continue; }
+                if (file.size > 10 * 1024 * 1024) {
+                    setUploadStatus(`${file.name} is over 10MB — skipped`, 'err');
+                    failed++; continue;
+                }
+                setUploadStatus(`Uploading ${file.name}… (${done + 1}/${files.length})`);
+                try {
+                    const url = await uploadToCloudinary(file);
+                    adminImages.push(url);
+                    done++;
+                    previewImages();
+                } catch (err) {
+                    failed++;
+                    setUploadStatus(`Upload failed: ${err.message}`, 'err');
+                }
+            }
+
+            if (btn) btn.disabled = false;
+            document.getElementById('adm-file-input').value = '';
+            if (done && !failed) setUploadStatus(`${done} image${done > 1 ? 's' : ''} uploaded`, 'ok');
+            else if (done && failed) setUploadStatus(`${done} uploaded, ${failed} failed`, 'err');
+        }
+
+        function toggleManualUrl() {
+            const row = document.getElementById('adm-manual-url-row');
+            row.style.display = row.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function addManualUrl() {
+            const input = document.getElementById('adm-manual-url');
+            const url = input.value.trim();
+            if (!url) return;
+            adminImages.push(url);
+            input.value = '';
+            previewImages();
+            setUploadStatus('Image link added', 'ok');
+        }
+
+        function removeAdminImage(index) {
+            adminImages.splice(index, 1);
+            previewImages();
+        }
+
+        // ── ADMIN: Image Preview ──────────────────────────
+        function previewImages() {
+            const strip = document.getElementById('adm-img-preview');
+            document.getElementById('adm-images').value = adminImages.join(', ');
+            if (!strip) return;
+            strip.innerHTML = adminImages.map((url, i) => `
+                <span class="img-preview-item">
+                    <img src="${url}" alt="Product image ${i + 1}" onclick="openProductImage('${url}')" style="cursor:pointer;" title="Tap to view full size">
+                    ${i === 0 ? '<span class="cover-tag">COVER</span>' : ''}
+                    <button type="button" class="rm" title="Remove" onclick="removeAdminImage(${i})">✕</button>
+                </span>
+            `).join('');
+        }
+
+        // ── ADMIN: Save (Add or Update) ───────────────────
+        function saveProduct() {
+            const name  = document.getElementById('adm-name').value.trim();
+            const price = parseFloat(document.getElementById('adm-price').value);
+            const sizes = document.getElementById('adm-sizes').value;
+            const colors = selectedAdminColors.join(', ');
+            const desc  = document.getElementById('adm-desc').value.trim();
+
+
+            if (isNaN(price) || price <= 0) { showAdmToast('Valid price is required'); return; }
+
+            const images = adminImages.slice();
+
+            if (editingId) {
+                const idx = window.adminProducts.findIndex(p => p.id === editingId);
+                if (idx !== -1) {
+                    window.adminProducts[idx] = { ...window.adminProducts[idx], name, price, images, sizes, colors, desc, inStock: window.adminProducts[idx].inStock !== false };
+                }
+                showAdmToast('Product updated');
+            } else {
+                window.adminProducts.push({
+                    id: 'p' + Date.now(),
+                    name, price, images, sizes, colors, desc, inStock: true
+                });
+                showAdmToast('Product added');
+            }
+
+            window.saveToStorage();
+            cancelEdit();
+            renderAdminGrid();
+            renderHomePage();
+            renderShopPage();
+        }
+
+        // ── ADMIN: Edit ───────────────────────────────────
+        function editProduct(id) {
+            const p = window.adminProducts.find(x => x.id === id);
+            if (!p) return;
+            editingId = id;
+            document.getElementById('adm-name').value   = p.name;
+            document.getElementById('adm-price').value  = p.price;
+            adminImages = (p.images || []).slice();
+            
+            // Handle sizes
+            selectedAdminSizes = [];
+            document.querySelectorAll('.adm-size-btn').forEach(btn => btn.classList.remove('selected'));
+            if (p.sizes) {
+                const sizes = p.sizes.split(',').map(s => s.trim());
+                sizes.forEach(size => {
+                    const btn = document.querySelector(`[data-size="${size}"]`);
+                    if (btn) {
+                        selectedAdminSizes.push(size);
+                        btn.classList.add('selected');
+                    }
+                });
+            }
+            document.getElementById('adm-sizes').value = selectedAdminSizes.join(', ');
+            
+            // Handle colours (hex list from the colour wheel; legacy names are kept as-is)
+            selectedAdminColors = (p.colors || '').split(',').map(c => c.trim()).filter(Boolean);
+            renderColorChips();
+            if (selectedAdminColors.length) setColorFromHex(selectedAdminColors[0]);
+            
+            document.getElementById('adm-desc').value   = p.desc || '';
+            document.getElementById('adm-form-title').textContent = 'Edit Product';
+            document.getElementById('adm-save-btn').textContent   = 'Update Product';
+            document.getElementById('adm-cancel-edit').style.display = 'inline';
+            previewImages();
+            document.getElementById('admin-overlay').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            document.getElementById('adm-name').value   = '';
+            document.getElementById('adm-price').value  = '';
+            adminImages = [];
+            document.getElementById('adm-images').value = '';
+            selectedAdminSizes = [];
+            document.querySelectorAll('.adm-size-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('adm-sizes').value  = '';
+            selectedAdminColors = [];
+            renderColorChips();
+            setUploadStatus('');
+            document.getElementById('adm-desc').value   = '';
+            document.getElementById('adm-img-preview').innerHTML = '';
+            document.getElementById('adm-form-title').textContent = 'Add New Product';
+            document.getElementById('adm-save-btn').textContent   = 'Save Product';
+            document.getElementById('adm-cancel-edit').style.display = 'none';
+        }
+
+        // ── ADMIN: Delete ─────────────────────────────────
+        function deleteProduct(id) {
+            if (!confirm('Delete this product? This cannot be undone.')) return;
+            window.adminProducts = window.adminProducts.filter(p => p.id !== id);
+            window.deleteFromStorage(id);
+            renderAdminGrid();
+            renderHomePage();
+            renderShopPage();
+            if (editingId === id) cancelEdit();
+            showAdmToast('Product deleted');
+        }
+
+        // ── ADMIN: Inventory and product rendering ─────────
+        let inventoryPage = 1;
+        const INVENTORY_PAGE_SIZE = 20;
+        function getOrders() { return JSON.parse(localStorage.getItem('mc_orders') || '[]'); }
+        function toggleProductStock(id) {
+            const p = window.adminProducts.find(x => x.id === id); if (!p) return;
+            p.inStock = p.inStock === false; window.saveToStorage(); renderAdminGrid(); renderHomePage(); renderShopPage(); renderInventory(); showAdmToast(p.inStock ? 'Marked in stock' : 'Marked out of stock');
+        }
+        function renderInventory() {
+            const products = window.adminProducts || [], orders = getOrders();
+            document.getElementById('inv-product-count').textContent = products.length;
+            document.getElementById('inv-stock-count').textContent = products.filter(p => p.inStock !== false).length;
+            document.getElementById('inv-order-count').textContent = orders.length;
+            const pages = Math.max(1, Math.ceil(products.length / INVENTORY_PAGE_SIZE)); inventoryPage = Math.min(inventoryPage, pages);
+            const slice = products.slice((inventoryPage-1)*INVENTORY_PAGE_SIZE, inventoryPage*INVENTORY_PAGE_SIZE);
+            document.getElementById('inventory-product-body').innerHTML = slice.length ? slice.map(p => `<tr><td><strong>${p.name}</strong></td><td>${renderColorDots(p.colors)}</td><td>GHC ${Number(p.price).toFixed(2)}</td><td><span class="${p.inStock === false ? 'text-red-600' : 'text-green-700'}">${p.inStock === false ? 'Out of stock' : 'In stock'}</span></td><td><button class="stock-toggle ${p.inStock === false ? 'out' : 'in'}" onclick="toggleProductStock('${p.id}')">${p.inStock === false ? 'Set in' : 'Set out'}</button></td></tr>`).join('') : '<tr><td colspan="5" class="text-center text-gray-400 py-8">No products yet.</td></tr>';
+            document.getElementById('inventory-page-label').textContent = products.length ? `Page ${inventoryPage} of ${pages}` : '';
+            document.getElementById('inventory-pagination').innerHTML = Array.from({length: pages}, (_, i) => `<button class="inventory-page-btn ${i+1 === inventoryPage ? 'active' : ''}" onclick="inventoryPage=${i+1};renderInventory()">${i+1}</button>`).join('');
+            document.getElementById('inventory-order-body').innerHTML = orders.length ? orders.map(o => `<tr><td>${new Date(o.createdAt).toLocaleString()}</td><td><strong>${o.id}</strong><br><span class="text-gray-400">${o.items.length} item(s)</span><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${(o.items || []).filter(it => it.img).map(it => `<img src="${it.img}" alt="${it.name}" title="${it.name} — tap to view" onclick="openProductImage('${it.img}')" style="width:34px;height:42px;object-fit:cover;border:1px solid #e5e5e5;cursor:pointer;">`).join('')}</div></td><td>${o.deliveryOption === 'delivery' ? `${o.customer.name}<br>${o.customer.phone}` : 'Pick up'}</td><td>GHC ${Number(o.total).toFixed(2)}</td></tr>`).join('') : '<tr><td colspan="4" class="text-center text-gray-400 py-8">No checkout records yet.</td></tr>';
+        }
+        function printTable(title, headers, rows) { const w = window.open('', '_blank'); w.document.write(`<html><head><title>${title}</title><style>body{font-family:Arial;padding:28px}h1{font-size:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px}th{background:#f5f5f5}</style></head><body><h1>${title}</h1><p>Generated ${new Date().toLocaleString()}</p><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`); w.document.close(); }
+        function exportInventoryPDF() { const rows = window.adminProducts.map(p=>[p.name,p.colors||'—',`GHC ${Number(p.price).toFixed(2)}`,p.inStock===false?'Out of stock':'In stock']); printTable('Mobster Clothing Inventory',['Product','Color','Price','Status'],rows); }
+        function exportOrdersPDF() { const rows = getOrders().map(o=>[new Date(o.createdAt).toLocaleString(),o.id,`${o.deliveryOption==='delivery'?o.customer.name:'Pick up'}`,`GHC ${Number(o.total).toFixed(2)}`]); printTable('Mobster Clothing Checkout Records',['Date','Order','Customer / Delivery','Total'],rows); }
+
+        // ── ADMIN: Render Grid ────────────────────────────
+        function renderAdminGrid() {
+            renderInventory();
+            const grid = document.getElementById('adm-product-grid');
+            if (window.adminProducts.length === 0) {
+                grid.innerHTML = '<p class="col-span-2 text-center text-sm text-gray-400 py-8">No products yet. Add one above.</p>';
+                return;
+            }
+            grid.innerHTML = window.adminProducts.map(p => {
+                const thumb = (p.images && p.images[0]) ? p.images[0] : 'https://via.placeholder.com/300x400?text=No+Image';
+                const extraImgs = p.images && p.images.length > 1
+                    ? `<p class="text-[9px] text-gray-400 mt-1">+${p.images.length - 1} more image${p.images.length > 2 ? 's' : ''}</p>` : '';
+                const colorBadge = p.colors ? `<span class="text-[9px] text-gray-400" style="display:inline-flex;align-items:center;">${renderColorDots(p.colors)}</span>` : '';
+                const sizeBadge  = p.sizes  ? `<div class="text-[9px] text-gray-400 mt-0.5">${p.sizes}</div>` : '';
+                return `
+                <div class="adm-product-card">
+                    <img class="adm-thumb" src="${thumb}" alt="${p.name}" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
+                    ${extraImgs ? `<div class="px-3 pt-2">${extraImgs}</div>` : ''}
+                    <div class="p-3">
+                        <h4 class="text-[11px] uppercase tracking-tight font-medium leading-tight">${p.name}</h4>
+                        <p class="text-sm font-medium mt-0.5">GHC ${Number(p.price).toFixed(2)}</p>
+                        ${colorBadge}${sizeBadge}
+                        ${p.desc ? `<p class="text-[10px] text-gray-500 mt-1 leading-snug line-clamp-2">${p.desc}</p>` : ''}
+                        <button class="stock-toggle ${p.inStock === false ? 'out' : 'in'} mt-2 w-full" onclick="toggleProductStock('${p.id}')">${p.inStock === false ? 'Out of stock — Set in stock' : 'In stock — Set out of stock'}</button>
+                        <div class="flex gap-2 mt-3">
+                            <button class="adm-btn-edit flex-1" onclick="editProduct('${p.id}')">Edit</button>
+                            <button class="adm-btn-del flex-1" onclick="deleteProduct('${p.id}')">Delete</button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // ── ADMIN: Toast ──────────────────────────────────
+        function showAdmToast(msg) {
+            const t = document.getElementById('adm-toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2400);
+        }
+    </script>
+</body>
+</html>
