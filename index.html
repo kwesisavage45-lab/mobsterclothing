@@ -694,7 +694,7 @@
         </section>
 
         <!-- Product Grid (home preview) -->
-        <main class="grid grid-cols-2 gap-4 px-6 mt-4">
+        <main id="home-grid" class="grid grid-cols-2 gap-4 px-6 mt-4">
             <!-- Products will be dynamically loaded here -->
         </main>
 
@@ -715,7 +715,7 @@
             <div class="h-px bg-gray-100 mt-4"></div>
         </section>
 
-        <main class="grid grid-cols-2 gap-4 px-6">
+        <main id="shop-grid" class="grid grid-cols-2 gap-4 px-6">
             <!-- Products will be dynamically loaded here -->
         </main>
     </div>
@@ -834,7 +834,7 @@
                     </div>
                     <div>
                         <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Phone</p>
-                        <p class="text-sm">+233 55 041 6292</p>
+                        <p class="text-sm">+233 20 000 0000</p>
                     </div>
                 </div>
             </div>
@@ -916,11 +916,7 @@
             <div class="mb-5">
                 <p class="text-[10px] uppercase tracking-[3px] text-gray-500 mb-3">Select Size</p>
                 <div class="flex flex-wrap gap-2">
-                    <button class="size-btn" onclick="selectSize(this)">XS</button>
-                    <button class="size-btn" onclick="selectSize(this)">S</button>
-                    <button class="size-btn selected" onclick="selectSize(this)">M</button>
-                    <button class="size-btn" onclick="selectSize(this)">L</button>
-                    <button class="size-btn" onclick="selectSize(this)">XL</button>
+                    <!-- sizes injected dynamically by openSheet() -->
                 </div>
             </div>
 
@@ -1294,30 +1290,19 @@
 
         // ── Product Rendering Functions ─────────────────────
         function renderHomePage() {
-            const homeGrid = document.querySelector('#page-home main.grid');
+            const homeGrid = document.getElementById('home-grid');
             if (!homeGrid) return;
-            
-            if (window.adminProducts.length === 0) {
-                homeGrid.innerHTML = '<div class="col-span-2 text-center text-gray-400 py-8">No products available.</div>';
-                return;
-            }
-            
-            // Show first 2 products on home page
-            const homeProducts = window.adminProducts.slice(0, 2);
-            homeGrid.innerHTML = homeProducts.map(product => createProductCard(product)).join('');
+            homeGrid.innerHTML = window.adminProducts.length
+                ? window.adminProducts.slice(0, 2).map(product => createProductCard(product)).join('')
+                : '<div class="col-span-2 text-center text-gray-400 py-8">No products available.</div>';
         }
         
         function renderShopPage() {
-            const shopGrid = document.querySelector('#page-shop main.grid');
+            const shopGrid = document.getElementById('shop-grid');
             if (!shopGrid) return;
-            
-            if (window.adminProducts.length === 0) {
-                shopGrid.innerHTML = '<div class="col-span-2 text-center text-gray-400 py-8">No products available.</div>';
-                return;
-            }
-            
-            // Show all products on shop page
-            shopGrid.innerHTML = window.adminProducts.map(product => createProductCard(product)).join('');
+            shopGrid.innerHTML = window.adminProducts.length
+                ? window.adminProducts.map(product => createProductCard(product)).join('')
+                : '<div class="col-span-2 text-center text-gray-400 py-8">No products available.</div>';
         }
         
         function escapeHtml(str) {
@@ -1397,7 +1382,7 @@
             let images = [el.dataset.img];
             try { images = JSON.parse(el.dataset.images); } catch (err) { /* fall back to single image */ }
             const product = window.adminProducts.find(p => p.id === el.dataset.id);
-            openSheet(el.dataset.name, el.dataset.price, images, inStock, product ? product.desc : '', product && product.showStockQty === true ? product.stockQty : null, product ? product.id : null);
+            openSheet(el.dataset.name, el.dataset.price, images, inStock, product ? product.desc : '', product && product.showStockQty === true ? product.stockQty : null, product ? product.id : null, product ? product.sizes : '');
         });
 
         // ── Page routing ──────────────────────────────────
@@ -1445,7 +1430,7 @@
         const sheet = document.getElementById('product-sheet');
         let currentProduct = { name: '', price: '', img: '', inStock: true };
 
-        function openSheet(name, price, images, inStock = true, desc = '', stockQty = null, productId = null) {
+        function openSheet(name, price, images, inStock = true, desc = '', stockQty = null, productId = null, sizes = '') {
             if (!Array.isArray(images)) images = [images]; // back-compat if ever called with a single string
             if (!images.length) images = ['https://via.placeholder.com/300x400?text=No+Image'];
             const storedProduct = productId && window.adminProducts ? window.adminProducts.find(p => p.id === productId) : null;
@@ -1496,9 +1481,18 @@
 
             qty = 1;
             document.getElementById('qty-display').textContent = 1;
-            // Reset size to M
-            document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
-            document.querySelectorAll('.size-btn')[2].classList.add('selected');
+            // Render size buttons dynamically from saved product sizes
+            const sizeWrap = document.querySelector("#product-sheet .flex.flex-wrap.gap-2");
+            const sizeSection = sizeWrap ? sizeWrap.closest("div.mb-5") : null;
+            if (sizeWrap) {
+                const sizeList = sizes ? sizes.split(",").map(s => s.trim()).filter(Boolean) : [];
+                if (sizeList.length) {
+                    if (sizeSection) sizeSection.style.display = "";
+                    sizeWrap.innerHTML = sizeList.map((s, i) => `<button class="size-btn${i === 0 ? " selected" : ""}" onclick="selectSize(this)">${s}</button>`).join("");
+                } else {
+                    if (sizeSection) sizeSection.style.display = "none";
+                }
+            }
             sheet.classList.add('open');
             document.body.style.overflow = 'hidden';
         }
